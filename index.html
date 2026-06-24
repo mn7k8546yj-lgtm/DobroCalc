@@ -22,29 +22,29 @@
             annual: {
                 base: { 
                     name: 'Базовый ИИ', price: 1200, fixed: 200, consults: 0, consultDiscount: 20,
-                    features: ['Доступ к платформе 24/7', '1 000 запросов к ИИ', 'Скидка 20% на покупку живых звонков']
+                    features: ['Доступ к платформе 24/7', 'Скидка 20% на покупку живых звонков']
                 },
                 unlimited: { 
                     name: 'ИИ Безлимит', price: 3300, fixed: 600, consults: 1, consultDiscount: 20,
-                    features: ['Доступ к платформе 24/7', 'Безлимитное количество запросов к ИИ', '1 устная консультация со специалистом (врач/юрист/психолог/ЗОЖ)', 'Скидка 20% на услуги сверх лимита']
+                    features: ['Доступ к платформе 24/7', '1 устная консультация со специалистом (врач/юрист/психолог/ЗОЖ)', 'Скидка 20% на услуги сверх лимита']
                 },
                 premium: { 
                     name: 'Премиум', price: 4990, fixed: 600, consults: 3, consultDiscount: 20,
-                    features: ['Доступ к платформе 24/7', 'Безлимитное количество запросов к ИИ', '3 устные консультации со специалистом (врач/юрист/психолог/ЗОЖ)', 'Скидка 20% на услуги сверх лимита']
+                    features: ['Доступ к платформе 24/7', '3 устные консультации со специалистом (врач/юрист/психолог/ЗОЖ)', 'Скидка 20% на услуги сверх лимита']
                 }
             },
             monthly: {
                 base: { 
                     name: 'Базовый ИИ (Мес)', price: 150, fixed: 25, consults: 0, consultDiscount: 0,
-                    features: ['Доступ к платформе 24/7', '100 запросов к ИИ', 'Живые звонки приобретаются отдельно (без скидки)']
+                    features: ['Доступ к платформе 24/7', 'Живые звонки приобретаются отдельно (без скидки)']
                 },
                 unlimited: { 
                     name: 'ИИ Безлимит (Мес)', price: 390, fixed: 50, consults: 0, consultDiscount: 0,
-                    features: ['Доступ к платформе 24/7', 'Безлимитное количество запросов к ИИ', 'Живые звонки приобретаются отдельно (без скидки)']
+                    features: ['Доступ к платформе 24/7', 'Живые звонки приобретаются отдельно (без скидки)']
                 },
                 premium: { 
                     name: 'Премиум (Мес)', price: 590, fixed: 50, consults: 0, consultDiscount: 0,
-                    features: ['Доступ к платформе 24/7', 'Безлимитное количество запросов к ИИ', 'Живые звонки приобретаются отдельно (без скидки)']
+                    features: ['Доступ к платформе 24/7', 'Живые звонки приобретаются отдельно (без скидки)']
                 }
             }
         };
@@ -92,10 +92,11 @@
                         <div>
                             {Object.entries(activeTariffs).map(([k, t]) => {
                                 const tariffUsers = users[k] || 0;
+                                const tariffUtil = utils[k] || 0;
                                 
-                                // СЕБЕСТОИМОСТЬ: Утилизация НЕ влияет на консультации
-                                const consultsCost = t.consults * CONSULT_COST;
-                                const totalCostPerUnit = t.fixed + consultsCost;
+                                // СЕБЕСТОИМОСТЬ: Утилизация влияет на консультации, фиксированные затраты убраны
+                                const consultsCost = t.consults * CONSULT_COST * (tariffUtil / 100);
+                                const totalCostPerUnit = consultsCost;
                                 
                                 const projectPrice = tariffUsers * t.price;
                                 const totalCostProject = tariffUsers * totalCostPerUnit;
@@ -122,6 +123,10 @@
                                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Количество лицензий</label>
                                                         <input type="number" value={tariffUsers} onChange={e => handleUserChange(k, e.target.value)} className="w-full p-2 border rounded-md outline-none focus:ring-2 focus:ring-blue-500"/>
                                                     </div>
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Утилизация (%)</label>
+                                                        <input type="number" value={tariffUtil} onChange={e => handleUtilChange(k, e.target.value)} className="w-full p-2 border rounded-md outline-none focus:ring-2 focus:ring-blue-500"/>
+                                                    </div>
                                                 </div>
                                                 
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
@@ -143,12 +148,8 @@
                                                     <p className="font-bold text-slate-800">Расшифровка себестоимости на 1 лицензию ({totalCostPerUnit.toLocaleString()} ₽):</p>
                                                     <ul className="list-disc list-inside space-y-2 ml-2">
                                                         <li>
-                                                            Фиксированные затраты: <b>{t.fixed} ₽</b> 
-                                                            <span className="text-slate-400 italic ml-1">(базовая себестоимость платформы)</span>
-                                                        </li>
-                                                        <li>
                                                             Консультации: <b>{consultsCost.toLocaleString()} ₽</b> 
-                                                            <span className="text-slate-400 italic ml-1">({t.consults} шт. × {CONSULT_COST} ₽)</span>
+                                                            <span className="text-slate-400 italic ml-1">({t.consults} шт. × {CONSULT_COST} ₽ × {tariffUtil}%)</span>
                                                         </li>
                                                     </ul>
                                                 </div>
