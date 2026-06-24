@@ -2,49 +2,109 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Dobroservice Calc</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Экономика Dobroservice</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
+
+    <style>
+        .slider { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 4px; background: #e2e8f0; outline: none; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #3b82f6; cursor: pointer; }
+    </style>
 </head>
-<body class="bg-slate-50 p-6">
-    <div class="max-w-lg mx-auto bg-white p-6 rounded-2xl shadow-lg">
-        <h1 class="text-2xl font-bold text-blue-800 mb-6">Калькулятор Dobroservice</h1>
-        
-        <div class="mb-6">
-            <label class="block text-sm font-bold text-gray-600 mb-1">Количество лицензий</label>
-            <input type="number" id="users" value="1000" class="w-full p-3 border rounded-lg mb-4">
-            <button onclick="calculate()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-bold">Рассчитать</button>
-        </div>
+<body>
+    <div id="root"></div>
 
-        <table class="w-full text-sm hidden" id="resultTable">
-            <thead><tr class="text-left text-gray-400 border-b"><th>Тариф</th><th>Маржа</th></tr></thead>
-            <tbody id="tableBody"></tbody>
-        </table>
-    </div>
+    <script type="text/babel" data-type="module">
+        const { useState, useMemo } = React;
 
-    <script>
-        function calculate() {
-            const users = parseInt(document.getElementById('users').value);
-            const table = document.getElementById('resultTable');
-            const tbody = document.getElementById('tableBody');
+        const TARIFFS_CONFIG = {
+            annual: {
+                base: { name: 'Базовый ИИ', price: 1200, fixedCost: 200, freeConsults: 0, consultCost: 0, color: '#3b82f6' },
+                unlimited: { name: 'ИИ Безлимит', price: 3300, fixedCost: 600, freeConsults: 0, consultCost: 0, color: '#10b981' },
+                premium: { name: 'Премиум', price: 4990, fixedCost: 600, freeConsults: 3, consultCost: 750, color: '#f59e0b' }
+            },
+            monthly: {
+                base: { name: 'Базовый ИИ (Месяц)', price: 150, fixedCost: 25, freeConsults: 0, consultCost: 0, color: '#60a5fa' },
+                unlimited: { name: 'ИИ Безлимит (Месяц)', price: 390, fixedCost: 50, freeConsults: 0, consultCost: 0, color: '#34d399' },
+                premium: { name: 'Премиум (Месяц)', price: 590, fixedCost: 50, freeConsults: 0, consultCost: 0, color: '#fbbf24' }
+            }
+        };
+
+        const formatMoney = (val) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(val);
+
+        function App() {
+            const [billingPeriod, setBillingPeriod] = useState('annual');
+            const [b2bUsers, setB2bUsers] = useState(1000);
+            const [b2bUtil, setB2bUtil] = useState(10);
             
-            const tariffs = [
-                { name: 'Базовый', price: 120, cost: 80 },
-                { name: 'Безлимит', price: 300, cost: 200 },
-                { name: 'Премиум', price: 500, cost: 350 }
-            ];
+            // Цены, которые можно менять в таблице
+            const [prices, setPrices] = useState({ base: 1200, unlimited: 3300, premium: 4990 });
+            
+            const activeConfig = TARIFFS_CONFIG[billingPeriod];
 
-            tbody.innerHTML = '';
-            tariffs.forEach(t => {
-                const margin = (t.price - t.cost) * users;
-                tbody.innerHTML += `
-                    <tr class="border-b">
-                        <td class="py-3 font-bold">${t.name}</td>
-                        <td class="py-3 text-green-600 font-bold">${margin.toLocaleString()} ₽</td>
-                    </tr>`;
-            });
+            return (
+                <div className="max-w-5xl mx-auto p-6 bg-slate-50 min-h-screen">
+                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                        <div className="flex justify-between items-center mb-8">
+                            <h1 className="text-2xl font-bold text-slate-900">B2B Калькулятор сделок</h1>
+                            <div className="flex bg-slate-200 p-1 rounded-lg">
+                                <button onClick={() => setBillingPeriod('annual')} className={`px-4 py-2 rounded-md ${billingPeriod === 'annual' ? 'bg-white shadow' : ''}`}>Год</button>
+                                <button onClick={() => setBillingPeriod('monthly')} className={`px-4 py-2 rounded-md ${billingPeriod === 'monthly' ? 'bg-white shadow' : ''}`}>Месяц</button>
+                            </div>
+                        </div>
 
-            table.classList.remove('hidden');
+                        <div className="grid grid-cols-2 gap-6 mb-8">
+                            <div>
+                                <label className="text-xs font-semibold uppercase text-slate-500">Общий объем лицензий</label>
+                                <input type="number" value={b2bUsers} onChange={e => setB2bUsers(Number(e.target.value))} className="w-full mt-1 p-2 border rounded" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold uppercase text-slate-500">Прогнозируемая утилизация (%)</label>
+                                <input type="number" value={b2bUtil} onChange={e => setB2bUtil(Number(e.target.value))} className="w-full mt-1 p-2 border rounded" />
+                            </div>
+                        </div>
+
+                        <table className="w-full text-sm">
+                            <thead className="border-b">
+                                <tr className="text-left text-slate-400">
+                                    <th className="pb-2">Тариф и цена</th>
+                                    <th className="pb-2">Маржа сделки</th>
+                                    <th className="pb-2">Условие для договора</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {['base', 'unlimited', 'premium'].map((tKey) => {
+                                    const t = activeConfig[tKey];
+                                    const price = prices[tKey];
+                                    const rev = b2bUsers * price;
+                                    const liveCost = t.freeConsults * t.consultCost * (b2bUtil / 100);
+                                    const cost = b2bUsers * (t.fixedCost + liveCost);
+                                    const penalty = ((t.fixedCost + (t.freeConsults * t.consultCost)) / 100);
+
+                                    return (
+                                        <tr key={tKey} className="border-b">
+                                            <td className="py-4 font-bold">{t.name}
+                                                <input type="number" value={price} onChange={e => setPrices({...prices, [tKey]: Number(e.target.value)})} className="block w-24 p-1 mt-1 border rounded text-blue-600" />
+                                            </td>
+                                            <td className="py-4 font-bold text-emerald-600">{formatMoney(rev - cost)}</td>
+                                            <td className="py-4 text-xs text-slate-500 italic">
+                                                При превышении {b2bUtil}%: +{formatMoney(penalty)} за 1%
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
         }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
