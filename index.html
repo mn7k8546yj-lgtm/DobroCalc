@@ -3,41 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <title>Dobroservice Calc</title>
-    <!-- Подключаем стили Tailwind напрямую -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-50 p-6">
-    <div class="max-w-md mx-auto bg-white p-6 rounded-2xl shadow-lg">
+    <div class="max-w-lg mx-auto bg-white p-6 rounded-2xl shadow-lg">
         <h1 class="text-2xl font-bold text-blue-800 mb-6">Калькулятор Dobroservice</h1>
         
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm font-bold text-gray-600 mb-1">Количество лицензий</label>
-                <input type="number" id="users" value="1000" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-            </div>
-            
-            <button onclick="calc()" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg font-bold transition">
-                Рассчитать маржу
-            </button>
+        <div class="mb-6">
+            <label class="block text-sm font-bold text-gray-600 mb-1">Количество лицензий</label>
+            <input type="number" id="users" value="1000" class="w-full p-3 border rounded-lg mb-4">
+            <button onclick="calculate()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-bold">Рассчитать</button>
         </div>
 
-        <div id="result" class="mt-6 p-4 bg-green-50 rounded-lg text-green-800 font-bold hidden border border-green-200">
-            <!-- Сюда выведем результат -->
-        </div>
+        <table class="w-full text-sm hidden" id="resultTable">
+            <thead><tr class="text-left text-gray-400 border-b"><th>Тариф</th><th>Маржа</th></tr></thead>
+            <tbody id="tableBody"></tbody>
+        </table>
     </div>
 
     <script>
-        function calc() {
-            // Берем значение из поля
-            const users = document.getElementById('users').value;
-            const resDiv = document.getElementById('result');
+        function calculate() {
+            const users = parseInt(document.getElementById('users').value);
+            const table = document.getElementById('resultTable');
+            const tbody = document.getElementById('tableBody');
             
-            // Логика (пример)
-            const margin = users * 150; 
-            
-            // Вывод
-            resDiv.innerText = "Итоговая маржа: " + margin.toLocaleString() + " ₽";
-            resDiv.classList.remove('hidden');
+            const tariffs = [
+                { name: 'Базовый', price: 120, cost: 80 },
+                { name: 'Безлимит', price: 300, cost: 200 },
+                { name: 'Премиум', price: 500, cost: 350 }
+            ];
+
+            tbody.innerHTML = '';
+            tariffs.forEach(t => {
+                const margin = (t.price - t.cost) * users;
+                tbody.innerHTML += `
+                    <tr class="border-b">
+                        <td class="py-3 font-bold">${t.name}</td>
+                        <td class="py-3 text-green-600 font-bold">${margin.toLocaleString()} ₽</td>
+                    </tr>`;
+            });
+
+            table.classList.remove('hidden');
         }
     </script>
 </body>
