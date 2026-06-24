@@ -2,54 +2,25 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Экономика Dobroservice</title>
+    <title>Dobroservice</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/recharts@2.1.12/umd/Recharts.js"></script>
-    <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="bg-slate-100 p-4">
+<body class="bg-gray-100">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useMemo } = React;
-        const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } = Recharts;
-
         function App() {
-            const [b2bUsers, setB2bUsers] = useState(1000);
-            const [b2bUtil, setB2bUtil] = useState(10);
-            const tariffs = [
-                { name: 'Базовый', price: 120, fixed: 200 },
-                { name: 'Безлимит', price: 300, fixed: 600 },
-                { name: 'Премиум', price: 500, fixed: 600 }
-            ];
-
             return (
-                <div className="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
-                    <h1 className="text-2xl font-bold mb-6">Матрица B2B предложений</h1>
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                        <div><label className="block text-xs font-bold text-gray-500">Лицензии</label>
-                             <input type="number" value={b2bUsers} onChange={e => setB2bUsers(e.target.value)} className="w-full p-2 border rounded"/></div>
-                        <div><label className="block text-xs font-bold text-gray-500">Утилизация (%)</label>
-                             <input type="number" value={b2bUtil} onChange={e => setB2bUtil(e.target.value)} className="w-full p-2 border rounded"/></div>
-                    </div>
-                    <table className="w-full text-sm">
-                        <thead><tr className="text-left text-gray-400"><th>Тариф</th><th>Маржа</th></tr></thead>
-                        <tbody>
-                            {tariffs.map((t, i) => (
-                                <tr key={i} className="border-t">
-                                    <td className="py-4 font-bold">{t.name}</td>
-                                    <td className="py-4 font-bold text-green-600">
-                                        {((b2bUsers * t.price) - (b2bUsers * t.fixed)).toLocaleString()} ₽
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="p-10 text-center">
+                    <h1 className="text-3xl font-bold text-blue-600">Добросервис работает!</h1>
+                    <p className="mt-4 text-lg">Если ты это видишь, React загрузился корректно.</p>
                 </div>
             );
         }
+        
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
