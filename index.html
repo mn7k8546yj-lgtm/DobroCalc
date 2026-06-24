@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Экономика Dobroservice</title>
+    <title>Добросервис.Жизнь калькулятор</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -15,31 +15,30 @@
         const { useState } = React;
 
         // Себестоимость
-        const AI_QUERY_COST = 5; 
         const CONSULT_COST = 750;
 
-        // КОНФИГУРАЦИЯ ТАРИФОВ 
-        // Если цифры из твоего CSV файла немного отличаются, ты можешь поправить их прямо здесь
+        // Конфигурация тарифов (без затрат на ИИ)
         const TARIFFS = {
             annual: {
-                base: { name: 'Базовый ИИ', price: 1200, fixed: 200, queries: 1000, consults: 0, consultDiscount: 0 },
-                unlimited: { name: 'ИИ Безлимит', price: 3300, fixed: 600, queries: 5000, consults: 1, consultDiscount: 20 },
-                premium: { name: 'Премиум', price: 4990, fixed: 600, queries: 10000, consults: 3, consultDiscount: 30 }
+                base: { name: 'Базовый ИИ', price: 1200, fixed: 200, consults: 0, consultDiscount: 0 },
+                unlimited: { name: 'ИИ Безлимит', price: 3300, fixed: 600, consults: 1, consultDiscount: 20 },
+                premium: { name: 'Премиум', price: 4990, fixed: 600, consults: 3, consultDiscount: 30 }
             },
             monthly: {
-                base: { name: 'Базовый ИИ (Мес)', price: 150, fixed: 25, queries: 100, consults: 0, consultDiscount: 0 },
-                unlimited: { name: 'ИИ Безлимит (Мес)', price: 390, fixed: 50, queries: 500, consults: 0, consultDiscount: 0 },
-                premium: { name: 'Премиум (Мес)', price: 590, fixed: 50, queries: 1000, consults: 1, consultDiscount: 0 }
+                base: { name: 'Базовый ИИ (Мес)', price: 150, fixed: 25, consults: 0, consultDiscount: 0 },
+                unlimited: { name: 'ИИ Безлимит (Мес)', price: 390, fixed: 50, consults: 0, consultDiscount: 0 },
+                premium: { name: 'Премиум (Мес)', price: 590, fixed: 50, consults: 1, consultDiscount: 0 }
             }
         };
 
         function App() {
             const [view, setView] = useState('retail');
             const [billing, setBilling] = useState('annual');
-            const [util, setUtil] = useState(30);
             
-            const [selected, setSelected] = useState({ base: true, unlimited: false, premium: false });
+            // Состояния для каждого тарифа
+            const [selected, setSelected] = useState({ base: true, unlimited: true, premium: true });
             const [users, setUsers] = useState({ base: 100, unlimited: 10, premium: 5 });
+            const [utils, setUtils] = useState({ base: 10, unlimited: 10, premium: 10 });
 
             const activeTariffs = TARIFFS[billing];
 
@@ -47,14 +46,24 @@
                 setUsers({ ...users, [key]: Number(value) });
             };
 
+            const handleUtilChange = (key, value) => {
+                setUtils({ ...utils, [key]: Number(value) });
+            };
+
+            // Переменные для итоговых сумм
+            let grandRetailRevenue = 0;
+            let grandRetailCost = 0;
+            let grandB2BTotal = 0;
+
             return (
                 <div className="max-w-5xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-                    <h1 className="text-3xl font-bold text-slate-800 mb-8">Экономика Dobroservice</h1>
+                    <h1 className="text-3xl font-bold text-slate-800 mb-8">Добросервис.Жизнь калькулятор</h1>
                     
+                    {/* Навигация */}
                     <div className="flex flex-wrap gap-3 mb-8 border-b pb-6">
-                        <button onClick={() => setView('retail')} className={`px-5 py-2 rounded-lg font-medium transition ${view === 'retail' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>Розница</button>
-                        <button onClick={() => setView('b2b')} className={`px-5 py-2 rounded-lg font-medium transition ${view === 'b2b' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>B2B Партнер</button>
-                        <button onClick={() => setView('info')} className={`px-5 py-2 rounded-lg font-medium transition ${view === 'info' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>Тарифные планы</button>
+                        <button onClick={() => setView('retail')} className={`px-5 py-2 rounded-lg font-medium transition ${view === 'retail' ? 'bg-blue-600 text-white shadow' : 'bg-slate-100 text-slate-600'}`}>Розница</button>
+                        <button onClick={() => setView('b2b')} className={`px-5 py-2 rounded-lg font-medium transition ${view === 'b2b' ? 'bg-blue-600 text-white shadow' : 'bg-slate-100 text-slate-600'}`}>B2B Партнер</button>
+                        <button onClick={() => setView('info')} className={`px-5 py-2 rounded-lg font-medium transition ${view === 'info' ? 'bg-blue-600 text-white shadow' : 'bg-slate-100 text-slate-600'}`}>Тарифные планы</button>
                         
                         <div className="ml-auto flex bg-slate-100 p-1 rounded-lg">
                             <button onClick={() => setBilling('annual')} className={`px-4 py-1 rounded-md transition ${billing === 'annual' ? 'bg-white shadow text-blue-700 font-bold' : 'text-slate-600'}`}>Год</button>
@@ -62,97 +71,160 @@
                         </div>
                     </div>
 
-                    {(view === 'retail' || view === 'b2b') && (
-                        <div className="mb-6 bg-slate-50 p-6 rounded-xl border border-slate-200">
-                            <label className="block text-sm font-bold text-slate-500 uppercase">Общая прогнозируемая утилизация (%)</label>
-                            <input type="number" value={util} onChange={e => setUtil(Number(e.target.value))} className="w-full md:w-1/3 mt-2 p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"/>
+                    {/* Раздел: Розница */}
+                    {view === 'retail' && (
+                        <div>
+                            {Object.entries(activeTariffs).map(([k, t]) => {
+                                const tariffUsers = users[k] || 0;
+                                const tariffUtil = utils[k] || 0;
+                                
+                                const consultsCost = t.consults * (tariffUtil / 100) * CONSULT_COST;
+                                const totalCostPerUnit = t.fixed + consultsCost;
+                                
+                                const projectPrice = tariffUsers * t.price;
+                                const totalCostProject = tariffUsers * totalCostPerUnit;
+                                const margin = projectPrice - totalCostProject;
+                                
+                                if (selected[k]) {
+                                    grandRetailRevenue += projectPrice;
+                                    grandRetailCost += totalCostProject;
+                                }
+                                
+                                return (
+                                    <div key={k} className={`border rounded-xl p-6 mb-4 transition ${selected[k] ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200'}`}>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <label className="flex items-center gap-3 font-bold text-xl cursor-pointer">
+                                                <input type="checkbox" className="w-5 h-5" checked={selected[k]} onChange={() => setSelected({...selected, [k]: !selected[k]})}/> 
+                                                {t.name} — <span className="text-blue-600">{t.price} ₽</span>
+                                            </label>
+                                        </div>
+
+                                        {selected[k] && (
+                                            <div className="bg-white p-5 rounded-lg shadow-inner border border-slate-100">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Количество лицензий</label>
+                                                        <input type="number" value={tariffUsers} onChange={e => handleUserChange(k, e.target.value)} className="w-full p-2 border rounded-md outline-none focus:ring-2 focus:ring-blue-500"/>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Утилизация (%)</label>
+                                                        <input type="number" value={tariffUtil} onChange={e => handleUtilChange(k, e.target.value)} className="w-full p-2 border rounded-md outline-none focus:ring-2 focus:ring-blue-500"/>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
+                                                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                                        <div className="text-slate-500 text-xs uppercase mb-1">Выручка (по тарифу)</div>
+                                                        <div className="font-bold text-xl">{projectPrice.toLocaleString()} ₽</div>
+                                                    </div>
+                                                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                                        <div className="text-slate-500 text-xs uppercase mb-1">Себестоимость</div>
+                                                        <div className="font-bold text-xl">{totalCostProject.toLocaleString()} ₽</div>
+                                                    </div>
+                                                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                                        <div className="text-slate-500 text-xs uppercase mb-1">Маржа</div>
+                                                        <div className={`font-bold text-xl ${margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{margin.toLocaleString()} ₽</div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="text-sm text-slate-600 border-t pt-4 space-y-2">
+                                                    <p className="font-bold text-slate-800">Расшифровка себестоимости (на 1 лицензию):</p>
+                                                    <ul className="list-disc list-inside space-y-1 ml-2">
+                                                        <li>Фиксированные затраты: <b>{t.fixed} ₽</b></li>
+                                                        {t.consults > 0 ? (
+                                                            <li>Консультации ({t.consults} шт. × утил. {tariffUtil}% × {CONSULT_COST} ₽): <b>{consultsCost.toFixed(0)} ₽</b></li>
+                                                        ) : (
+                                                            <li>Консультации: <b>0 ₽</b></li>
+                                                        )}
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+
+                            <div className="mt-8 bg-slate-800 text-white p-6 rounded-xl shadow-lg">
+                                <h2 className="text-xl font-bold mb-4 uppercase text-slate-300">Сумма Итого (Розница)</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div>
+                                        <div className="text-slate-400 text-sm mb-1">Общая выручка:</div>
+                                        <div className="text-3xl font-bold">{grandRetailRevenue.toLocaleString()} ₽</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-slate-400 text-sm mb-1">Общая себестоимость:</div>
+                                        <div className="text-3xl font-bold">{grandRetailCost.toLocaleString()} ₽</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-slate-400 text-sm mb-1">Итоговая маржа:</div>
+                                        <div className={`text-3xl font-bold ${grandRetailRevenue - grandRetailCost >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                            {(grandRetailRevenue - grandRetailCost).toLocaleString()} ₽
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 
-                    {view === 'retail' && Object.entries(activeTariffs).map(([k, t]) => {
-                        const tariffUsers = users[k] || 0;
-                        const queriesCost = (t.queries * (util / 100)) * AI_QUERY_COST;
-                        const consultsCost = t.consults * CONSULT_COST;
-                        const totalCostPerUnit = t.fixed + queriesCost + consultsCost;
-                        
-                        const projectPrice = tariffUsers * t.price;
-                        const totalCostProject = tariffUsers * totalCostPerUnit;
-                        const margin = projectPrice - totalCostProject;
-                        
-                        return (
-                            <div key={k} className={`border rounded-xl p-6 mb-4 transition ${selected[k] ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200'}`}>
-                                <div className="flex items-center justify-between mb-2">
-                                    <label className="flex items-center gap-3 font-bold text-xl cursor-pointer">
-                                        <input type="checkbox" className="w-5 h-5" checked={selected[k]} onChange={() => setSelected({...selected, [k]: !selected[k]})}/> 
-                                        {t.name} — <span className="text-blue-600">{t.price} ₽</span>
-                                    </label>
-                                </div>
+                    {/* Раздел: B2B */}
+                    {view === 'b2b' && (
+                        <div>
+                            {Object.entries(activeTariffs).map(([k, t]) => {
+                                const tariffUsers = users[k] || 0;
+                                const tariffUtil = utils[k] || 0;
+                                
+                                const partnerPrice = t.price * (tariffUtil / 100);
+                                const totalPartnerPrice = partnerPrice * tariffUsers;
 
-                                {selected[k] && (
-                                    <div className="mt-4 bg-white p-5 rounded-lg shadow-inner border border-slate-100">
-                                        <div className="mb-4">
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Количество лицензий для тарифа</label>
-                                            <input type="number" value={tariffUsers} onChange={e => handleUserChange(k, e.target.value)} className="w-full md:w-1/3 p-2 border rounded-md outline-none focus:ring-1 focus:ring-blue-500"/>
+                                if (selected[k]) {
+                                    grandB2BTotal += totalPartnerPrice;
+                                }
+                                
+                                return (
+                                    <div key={k} className={`border rounded-xl p-6 mb-4 transition ${selected[k] ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200'}`}>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <label className="flex items-center gap-3 font-bold text-xl cursor-pointer">
+                                                <input type="checkbox" className="w-5 h-5" checked={selected[k]} onChange={() => setSelected({...selected, [k]: !selected[k]})}/> 
+                                                {t.name} — <span className="text-slate-500 text-base font-normal">Розница: {t.price} ₽</span>
+                                            </label>
                                         </div>
-                                        
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
-                                            <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                                                <div className="text-slate-500 text-xs uppercase mb-1">Выручка (Проект)</div>
-                                                <div className="font-bold text-xl">{projectPrice.toLocaleString()} ₽</div>
+
+                                        {selected[k] && (
+                                            <div className="bg-white p-5 rounded-lg shadow-inner border border-slate-100 flex flex-col md:flex-row gap-6 justify-between items-center">
+                                                <div className="flex gap-4 w-full md:w-1/2">
+                                                    <div className="flex-1">
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Лицензии</label>
+                                                        <input type="number" value={tariffUsers} onChange={e => handleUserChange(k, e.target.value)} className="w-full p-2 border rounded-md outline-none focus:ring-2 focus:ring-blue-500"/>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Утилизация (%)</label>
+                                                        <input type="number" value={tariffUtil} onChange={e => handleUtilChange(k, e.target.value)} className="w-full p-2 border rounded-md outline-none focus:ring-2 focus:ring-blue-500"/>
+                                                    </div>
+                                                </div>
+
+                                                <div className="text-right w-full md:w-1/2">
+                                                    <div className="text-emerald-600 font-bold text-3xl">
+                                                        {partnerPrice.toLocaleString()} ₽ <span className="text-sm text-slate-500 font-normal">/ 1 шт.</span>
+                                                    </div>
+                                                    <div className="text-xs font-bold text-slate-500 uppercase mt-1">
+                                                        Итого по тарифу: {totalPartnerPrice.toLocaleString()} ₽
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                                                <div className="text-slate-500 text-xs uppercase mb-1">Себестоимость</div>
-                                                <div className="font-bold text-xl">{totalCostProject.toLocaleString()} ₽</div>
-                                            </div>
-                                            <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                                                <div className="text-slate-500 text-xs uppercase mb-1">Маржа</div>
-                                                <div className={`font-bold text-xl ${margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{margin.toLocaleString()} ₽</div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="text-sm text-slate-600 border-t pt-4 space-y-2">
-                                            <p className="font-bold text-slate-800">Подробная расшифровка себестоимости (на 1 лицензию):</p>
-                                            <ul className="list-disc list-inside space-y-1 ml-2">
-                                                <li>Фиксированные затраты: <b>{t.fixed} ₽</b></li>
-                                                <li>Запросы к ИИ (лимит {t.queries} × утил. {util}% × {AI_QUERY_COST} ₽): <b>{queriesCost.toFixed(0)} ₽</b></li>
-                                                {t.consults > 0 ? (
-                                                    <li>Консультации ({t.consults} шт. × {CONSULT_COST} ₽): <b>{consultsCost} ₽</b></li>
-                                                ) : (
-                                                    <li>Консультации: <b>0 ₽</b></li>
-                                                )}
-                                            </ul>
-                                            <p className="mt-3 text-blue-700 bg-blue-50 p-2 rounded inline-block">
-                                                Итого на 1 лиц: <b>{totalCostPerUnit.toFixed(0)} ₽</b> × {tariffUsers} шт. = <b>{totalCostProject.toLocaleString()} ₽</b>
-                                            </p>
-                                        </div>
+                                        )}
                                     </div>
-                                )}
+                                );
+                            })}
+
+                            <div className="mt-8 bg-slate-800 text-white p-6 rounded-xl shadow-lg">
+                                <h2 className="text-xl font-bold mb-2 uppercase text-slate-300">Сумма Итого (B2B Контракт)</h2>
+                                <p className="text-slate-400 text-sm mb-4">Общая стоимость контракта для партнера с учетом индивидуальной утилизации тарифов</p>
+                                <div className="text-4xl font-bold text-emerald-400">{grandB2BTotal.toLocaleString()} ₽</div>
                             </div>
-                        );
-                    })}
+                        </div>
+                    )}
 
-                    {view === 'b2b' && Object.entries(activeTariffs).map(([k, t]) => {
-                        // ФОРМУЛА B2B: Чем ниже утилизация, тем ниже цена
-                        const partnerPrice = t.price * (util / 100);
-                        
-                        return (
-                            <div key={k} className="p-6 border border-slate-200 rounded-xl mb-4 flex justify-between items-center bg-white shadow-sm">
-                                <div>
-                                    <div className="font-bold text-xl text-slate-800">{t.name}</div>
-                                    <div className="text-sm text-slate-500 mt-1">Базовая розничная цена: {t.price} ₽</div>
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-emerald-600 font-bold text-3xl">
-                                        {partnerPrice.toFixed(0)} ₽
-                                    </div>
-                                    <div className="text-xs font-medium text-slate-500 uppercase mt-1">
-                                        Цена партнера (при {util}% утилизации)
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-
+                    {/* Раздел: Информация о тарифах */}
                     {view === 'info' && Object.entries(activeTariffs).map(([k, t]) => (
                         <div key={k} className="mb-4 p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
                             <h3 className="font-bold text-blue-800 text-xl mb-4 border-b pb-2">{t.name}</h3>
@@ -162,12 +234,8 @@
                                     <b className="text-slate-900 text-base">{t.price} ₽</b>
                                 </p>
                                 <p className="flex justify-between border-b border-slate-100 pb-1">
-                                    <span className="text-slate-500">Фиксированные затраты:</span> 
+                                    <span className="text-slate-500">Себестоимость (фикс):</span> 
                                     <b className="text-slate-900">{t.fixed} ₽</b>
-                                </p>
-                                <p className="flex justify-between border-b border-slate-100 pb-1">
-                                    <span className="text-slate-500">Лимит запросов ИИ:</span> 
-                                    <b className="text-slate-900">{t.queries} шт.</b>
                                 </p>
                                 <p className="flex justify-between border-b border-slate-100 pb-1">
                                     <span className="text-slate-500">Включено консультаций:</span> 
