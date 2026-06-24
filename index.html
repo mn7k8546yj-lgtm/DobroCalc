@@ -14,20 +14,38 @@
     <script type="text/babel" data-type="module">
         const { useState } = React;
 
-        // Себестоимость
+        // Жесткая себестоимость консультации
         const CONSULT_COST = 750;
 
-        // Конфигурация тарифов (без затрат на ИИ)
+        // Конфигурация тарифов строго по файлу "Тарифы Добросервис"
         const TARIFFS = {
             annual: {
-                base: { name: 'Базовый ИИ', price: 1200, fixed: 200, consults: 0, consultDiscount: 0 },
-                unlimited: { name: 'ИИ Безлимит', price: 3300, fixed: 600, consults: 1, consultDiscount: 20 },
-                premium: { name: 'Премиум', price: 4990, fixed: 600, consults: 3, consultDiscount: 30 }
+                base: { 
+                    name: 'Базовый ИИ', price: 1200, fixed: 200, consults: 0, 
+                    features: ['Доступ к платформе 24/7', '1 000 запросов к ИИ']
+                },
+                unlimited: { 
+                    name: 'ИИ Безлимит', price: 3300, fixed: 600, consults: 1, 
+                    features: ['Доступ к платформе 24/7', 'Безлимитное количество запросов к ИИ', '1 устная консультация со специалистом (врач/юрист/психолог/ЗОЖ)', 'Скидка 20% на все услуги']
+                },
+                premium: { 
+                    name: 'Премиум', price: 4990, fixed: 600, consults: 3, 
+                    features: ['Доступ к платформе 24/7', 'Безлимитное количество запросов к ИИ', '3 устные консультации со специалистом (врач/юрист/психолог/ЗОЖ)', 'Скидка 20% на все услуги']
+                }
             },
             monthly: {
-                base: { name: 'Базовый ИИ (Мес)', price: 150, fixed: 25, consults: 0, consultDiscount: 0 },
-                unlimited: { name: 'ИИ Безлимит (Мес)', price: 390, fixed: 50, consults: 0, consultDiscount: 0 },
-                premium: { name: 'Премиум (Мес)', price: 590, fixed: 50, consults: 1, consultDiscount: 0 }
+                base: { 
+                    name: 'Базовый ИИ (Мес)', price: 150, fixed: 25, consults: 0, 
+                    features: ['Доступ к платформе 24/7', '100 запросов к ИИ']
+                },
+                unlimited: { 
+                    name: 'ИИ Безлимит (Мес)', price: 390, fixed: 50, consults: 0, 
+                    features: ['Доступ к платформе 24/7', 'Безлимитное количество запросов к ИИ', 'Скидка 20% на все услуги']
+                },
+                premium: { 
+                    name: 'Премиум (Мес)', price: 590, fixed: 50, consults: 1, 
+                    features: ['Доступ к платформе 24/7', 'Безлимитное количество запросов к ИИ', '1 устная консультация со специалистом (врач/юрист/психолог/ЗОЖ)', 'Скидка 20% на все услуги']
+                }
             }
         };
 
@@ -35,7 +53,6 @@
             const [view, setView] = useState('retail');
             const [billing, setBilling] = useState('annual');
             
-            // Состояния для каждого тарифа
             const [selected, setSelected] = useState({ base: true, unlimited: true, premium: true });
             const [users, setUsers] = useState({ base: 100, unlimited: 10, premium: 5 });
             const [utils, setUtils] = useState({ base: 10, unlimited: 10, premium: 10 });
@@ -50,7 +67,6 @@
                 setUtils({ ...utils, [key]: Number(value) });
             };
 
-            // Переменные для итоговых сумм
             let grandRetailRevenue = 0;
             let grandRetailCost = 0;
             let grandB2BTotal = 0;
@@ -76,9 +92,9 @@
                         <div>
                             {Object.entries(activeTariffs).map(([k, t]) => {
                                 const tariffUsers = users[k] || 0;
-                                const tariffUtil = utils[k] || 0;
                                 
-                                const consultsCost = t.consults * (tariffUtil / 100) * CONSULT_COST;
+                                // СЕБЕСТОИМОСТЬ: Утилизация больше НЕ влияет на консультации
+                                const consultsCost = t.consults * CONSULT_COST;
                                 const totalCostPerUnit = t.fixed + consultsCost;
                                 
                                 const projectPrice = tariffUsers * t.price;
@@ -106,10 +122,6 @@
                                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Количество лицензий</label>
                                                         <input type="number" value={tariffUsers} onChange={e => handleUserChange(k, e.target.value)} className="w-full p-2 border rounded-md outline-none focus:ring-2 focus:ring-blue-500"/>
                                                     </div>
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Утилизация (%)</label>
-                                                        <input type="number" value={tariffUtil} onChange={e => handleUtilChange(k, e.target.value)} className="w-full p-2 border rounded-md outline-none focus:ring-2 focus:ring-blue-500"/>
-                                                    </div>
                                                 </div>
                                                 
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
@@ -128,14 +140,16 @@
                                                 </div>
                                                 
                                                 <div className="text-sm text-slate-600 border-t pt-4 space-y-2">
-                                                    <p className="font-bold text-slate-800">Расшифровка себестоимости (на 1 лицензию):</p>
-                                                    <ul className="list-disc list-inside space-y-1 ml-2">
-                                                        <li>Фиксированные затраты: <b>{t.fixed} ₽</b></li>
-                                                        {t.consults > 0 ? (
-                                                            <li>Консультации ({t.consults} шт. × утил. {tariffUtil}% × {CONSULT_COST} ₽): <b>{consultsCost.toFixed(0)} ₽</b></li>
-                                                        ) : (
-                                                            <li>Консультации: <b>0 ₽</b></li>
-                                                        )}
+                                                    <p className="font-bold text-slate-800">Расшифровка себестоимости на 1 лицензию ({totalCostPerUnit.toLocaleString()} ₽):</p>
+                                                    <ul className="list-disc list-inside space-y-2 ml-2">
+                                                        <li>
+                                                            Фиксированные затраты: <b>{t.fixed} ₽</b> 
+                                                            <span className="text-slate-400 italic ml-1">(базовая себестоимость платформы)</span>
+                                                        </li>
+                                                        <li>
+                                                            Консультации: <b>{consultsCost.toLocaleString()} ₽</b> 
+                                                            <span className="text-slate-400 italic ml-1">({t.consults} шт. × {CONSULT_COST} ₽)</span>
+                                                        </li>
                                                     </ul>
                                                 </div>
                                             </div>
@@ -225,31 +239,32 @@
                     )}
 
                     {/* Раздел: Информация о тарифах */}
-                    {view === 'info' && Object.entries(activeTariffs).map(([k, t]) => (
-                        <div key={k} className="mb-4 p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
-                            <h3 className="font-bold text-blue-800 text-xl mb-4 border-b pb-2">{t.name}</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-6 text-sm">
-                                <p className="flex justify-between border-b border-slate-100 pb-1">
-                                    <span className="text-slate-500">Базовая цена:</span> 
-                                    <b className="text-slate-900 text-base">{t.price} ₽</b>
-                                </p>
-                                <p className="flex justify-between border-b border-slate-100 pb-1">
-                                    <span className="text-slate-500">Себестоимость (фикс):</span> 
-                                    <b className="text-slate-900">{t.fixed} ₽</b>
-                                </p>
-                                <p className="flex justify-between border-b border-slate-100 pb-1">
-                                    <span className="text-slate-500">Включено консультаций:</span> 
-                                    <b className="text-slate-900">{t.consults} шт.</b>
-                                </p>
-                                {t.consultDiscount > 0 && (
-                                    <p className="flex justify-between col-span-1 md:col-span-2 bg-emerald-50 p-2 rounded text-emerald-700 mt-2">
-                                        <span>Скидка на доп. консультации:</span>
-                                        <b>{t.consultDiscount}%</b>
-                                    </p>
-                                )}
-                            </div>
+                    {view === 'info' && (
+                        <div className="grid grid-cols-1 gap-6">
+                            {Object.entries(activeTariffs).map(([k, t]) => (
+                                <div key={k} className="p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                    <div className="flex justify-between items-center border-b pb-4 mb-4">
+                                        <h3 className="font-bold text-blue-800 text-2xl">{t.name}</h3>
+                                        <div className="text-right">
+                                            <div className="text-2xl font-bold text-slate-800">{t.price} ₽</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Наполнение тарифа:</h4>
+                                        <ul className="space-y-3">
+                                            {t.features.map((feature, idx) => (
+                                                <li key={idx} className="flex items-start gap-3">
+                                                    <span className="text-emerald-500 mt-0.5">✓</span>
+                                                    <span className="text-slate-700 leading-snug">{feature}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    )}
                 </div>
             );
         }
