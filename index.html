@@ -8,11 +8,15 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
 </head>
-<body class="bg-slate-100 p-4">
+<body class="bg-slate-50 p-6">
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
         const { useState } = React;
+
+        // Константы себестоимости
+        const AI_QUERY_COST = 5; 
+        const CONSULT_COST = 750;
 
         const TARIFFS = {
             annual: {
@@ -28,53 +32,98 @@
         };
 
         function App() {
-            const [view, setView] = useState('retail'); // retail, b2b, info
+            const [view, setView] = useState('retail');
             const [billing, setBilling] = useState('annual');
             const [users, setUsers] = useState(100);
             const [util, setUtil] = useState(30);
+            
+            // Состояние чекбоксов для розницы
             const [selected, setSelected] = useState({ base: true, unlimited: false, premium: false });
 
             const activeTariffs = TARIFFS[billing];
 
             return (
-                <div className="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
-                    <h1 className="text-2xl font-bold mb-6">Экономика Dobroservice</h1>
+                <div className="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                    <h1 className="text-3xl font-bold text-slate-800 mb-8">Экономика Dobroservice</h1>
                     
-                    <div className="flex gap-2 mb-6 border-b pb-4">
-                        <button onClick={() => setView('retail')} className={`px-4 py-2 rounded ${view === 'retail' ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>Розница</button>
-                        <button onClick={() => setView('b2b')} className={`px-4 py-2 rounded ${view === 'b2b' ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>B2B Партнер</button>
-                        <button onClick={() => setView('info')} className={`px-4 py-2 rounded ${view === 'info' ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>Тарифные планы</button>
+                    {/* Меню */}
+                    <div className="flex flex-wrap gap-3 mb-8 border-b pb-6">
+                        <button onClick={() => setView('retail')} className={`px-5 py-2 rounded-lg font-medium transition ${view === 'retail' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>Розница</button>
+                        <button onClick={() => setView('b2b')} className={`px-5 py-2 rounded-lg font-medium transition ${view === 'b2b' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>B2B Партнер</button>
+                        <button onClick={() => setView('info')} className={`px-5 py-2 rounded-lg font-medium transition ${view === 'info' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>Тарифные планы</button>
+                        <div className="ml-auto flex bg-slate-100 p-1 rounded-lg">
+                            <button onClick={() => setBilling('annual')} className={`px-4 py-1 rounded-md ${billing === 'annual' ? 'bg-white shadow' : ''}`}>Год</button>
+                            <button onClick={() => setBilling('monthly')} className={`px-4 py-1 rounded-md ${billing === 'monthly' ? 'bg-white shadow' : ''}`}>Месяц</button>
+                        </div>
                     </div>
 
-                    {view !== 'info' && (
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div><label className="block text-xs font-bold">Лицензии</label><input type="number" value={users} onChange={e => setUsers(Number(e.target.value))} className="w-full p-2 border rounded"/></div>
-                            <div><label className="block text-xs font-bold">Утилизация (%)</label><input type="number" value={util} onChange={e => setUtil(Number(e.target.value))} className="w-full p-2 border rounded"/></div>
+                    {/* Параметры */}
+                    {(view === 'retail' || view === 'b2b') && (
+                        <div className="grid grid-cols-2 gap-6 mb-8 bg-slate-50 p-6 rounded-xl">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-500 uppercase">Лицензии</label>
+                                <input type="number" value={users} onChange={e => setUsers(Number(e.target.value))} className="w-full mt-2 p-3 border rounded-lg"/>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-500 uppercase">Утилизация (%)</label>
+                                <input type="number" value={util} onChange={e => setUtil(Number(e.target.value))} className="w-full mt-2 p-3 border rounded-lg"/>
+                            </div>
                         </div>
                     )}
 
-                    {view === 'retail' && Object.entries(activeTariffs).map(([k, t]) => (
-                        <div key={k} className="border p-4 rounded mb-2">
-                            <label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={selected[k]} onChange={() => setSelected({...selected, [k]: !selected[k]})}/> {t.name} ({t.price} ₽)</label>
-                            {selected[k] && (
-                                <div className="text-sm mt-2 text-slate-600">
-                                    Себестоимость: {((t.queries * (util/100) * 5) + (t.consults * 750)).toLocaleString()} ₽
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                    {/* Розница */}
+                    {view === 'retail' && Object.entries(activeTariffs).map(([k, t]) => {
+                        const queriesCost = (t.queries * (util / 100)) * AI_QUERY_COST;
+                        const consultsCost = t.consults * CONSULT_COST;
+                        const totalCostPerUnit = t.fixed + queriesCost + consultsCost;
+                        const projectPrice = users * t.price;
+                        const totalCostProject = users * totalCostPerUnit;
+                        
+                        return (
+                            <div key={k} className={`border rounded-xl p-6 mb-4 transition ${selected[k] ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200'}`}>
+                                <label className="flex items-center gap-3 font-bold text-xl cursor-pointer">
+                                    <input type="checkbox" className="w-5 h-5" checked={selected[k]} onChange={() => setSelected({...selected, [k]: !selected[k]})}/> 
+                                    {t.name} — <span className="text-blue-600">{t.price} ₽</span>
+                                </label>
+                                {selected[k] && (
+                                    <div className="mt-4 grid grid-cols-2 gap-4 text-sm bg-white p-4 rounded-lg shadow-inner">
+                                        <div>Проект (на {users} лиц): <span className="font-bold">{projectPrice.toLocaleString()} ₽</span></div>
+                                        <div>Себестоимость проекта: <span className="font-bold">{totalCostProject.toLocaleString()} ₽</span></div>
+                                        <div className="col-span-2 text-xs text-slate-500 border-t pt-2 mt-2">
+                                            Расшифровка себестоимости (на 1 лиц): {t.fixed} (фикс) + {queriesCost.toFixed(0)} (ИИ запросы) + {consultsCost} (консультации)
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
 
+                    {/* B2B */}
                     {view === 'b2b' && Object.entries(activeTariffs).map(([k, t]) => (
-                        <div key={k} className="p-4 border-b">
-                            <div className="font-bold">{t.name}</div>
-                            <div className="text-emerald-600 font-bold">Партнерская цена: {(t.price * (1 - util/100)).toFixed(0)} ₽</div>
+                        <div key={k} className="p-6 border-b border-slate-100 flex justify-between items-center">
+                            <div>
+                                <div className="font-bold text-lg">{t.name}</div>
+                                <div className="text-sm text-slate-500">Базовая цена: {t.price} ₽</div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-emerald-600 font-bold text-2xl">
+                                    {(t.price * (1 - util/100)).toFixed(0)} ₽
+                                </div>
+                                <div className="text-xs text-slate-500">Партнерская цена (при {util}% утил.)</div>
+                            </div>
                         </div>
                     ))}
 
-                    {view === 'info' && Object.entries(TARIFFS.annual).map(([k, t]) => (
-                        <div key={k} className="mb-4 p-4 bg-slate-50 rounded">
-                            <h3 className="font-bold text-blue-700">{t.name}</h3>
-                            <p className="text-sm">Цена: {t.price} ₽ | Запросы: {t.queries} | Консультации: {t.consults}</p>
+                    {/* Информация */}
+                    {view === 'info' && Object.entries(activeTariffs).map(([k, t]) => (
+                        <div key={k} className="mb-6 p-6 bg-slate-50 rounded-xl border border-slate-200">
+                            <h3 className="font-bold text-blue-800 text-xl mb-3">{t.name}</h3>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <p>Цена: <b className="text-slate-900">{t.price} ₽</b></p>
+                                <p>Фикс. затраты: <b className="text-slate-900">{t.fixed} ₽</b></p>
+                                <p>Лимиты ИИ запросов: <b className="text-slate-900">{t.queries}</b></p>
+                                <p>Включено консультаций: <b className="text-slate-900">{t.consults}</b></p>
+                            </div>
                         </div>
                     ))}
                 </div>
