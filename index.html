@@ -3,26 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <title>Dobroservice</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="bg-gray-100">
-    <div id="root"></div>
+<body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+    
+    <h1 id="title" style="color: red; font-size: 24px;">Идет загрузка...</h1>
 
-    <script type="text/babel">
-        function App() {
-            return (
-                <div className="p-10 text-center">
-                    <h1 className="text-3xl font-bold text-blue-600">Добросервис работает!</h1>
-                    <p className="mt-4 text-lg">Если ты это видишь, React загрузился корректно.</p>
-                </div>
-            );
-        }
-        
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+    <script>
+        // Чистый JS, никакой магии React и Babel
+        setTimeout(function() {
+            var title = document.getElementById('title');
+            title.innerText = "Чистый JavaScript работает!";
+            title.style.color = "green";
+        }, 1000);
     </script>
+
 </body>
 </html>
