@@ -4,14 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Экономика Dobroservice</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-is@18.2.0/umd/react-is.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    <script src="https://unpkg.com/recharts@2.1.12/umd/Recharts.js"></script>
     <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
 
     <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
         .slider { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 4px; background: #e2e8f0; outline: none; }
-        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #3b82f6; cursor: pointer; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #3b82f6; cursor: pointer; transition: background .15s ease-in-out; }
+        .slider::-webkit-slider-thumb:hover { background: #2563eb; }
     </style>
 </head>
 <body>
@@ -19,85 +25,233 @@
 
     <script type="text/babel" data-type="module">
         const { useState, useMemo } = React;
+        const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } = window.Recharts;
 
+        // Наша новая база данных с годовыми и месячными тарифами
         const TARIFFS_CONFIG = {
             annual: {
-                base: { name: 'Базовый ИИ', price: 1200, fixedCost: 200, freeConsults: 0, consultCost: 0, color: '#3b82f6' },
-                unlimited: { name: 'ИИ Безлимит', price: 3300, fixedCost: 600, freeConsults: 0, consultCost: 0, color: '#10b981' },
-                premium: { name: 'Премиум', price: 4990, fixedCost: 600, freeConsults: 3, consultCost: 750, color: '#f59e0b' }
+                base: { name: 'Базовый ИИ', price: 1200, fixedCost: 200, freeConsults: 0, consultCost: 0, color: '#3b82f6', features: ['Все ИИ-советники (15 запр./сут)', 'Скидка 20% на услуги', 'Эквивалент 100 ₽/мес'] },
+                unlimited: { name: 'ИИ Безлимит', price: 3300, fixedCost: 600, freeConsults: 0, consultCost: 0, color: '#10b981', features: ['Безлимитный ИИ (все советники)', 'Скидка 20% на услуги'] },
+                premium: { name: 'Премиум', price: 4990, fixedCost: 600, freeConsults: 3, consultCost: 750, color: '#f59e0b', features: ['Безлимитный ИИ', '3 живые консультации в подарок', 'Скидка 20% сверх лимита'] }
             },
             monthly: {
-                base: { name: 'Базовый ИИ (Месяц)', price: 150, fixedCost: 25, freeConsults: 0, consultCost: 0, color: '#60a5fa' },
-                unlimited: { name: 'ИИ Безлимит (Месяц)', price: 390, fixedCost: 50, freeConsults: 0, consultCost: 0, color: '#34d399' },
-                premium: { name: 'Премиум (Месяц)', price: 590, fixedCost: 50, freeConsults: 0, consultCost: 0, color: '#fbbf24' }
+                base: { name: 'Базовый ИИ (Месяц)', price: 150, fixedCost: 25, freeConsults: 0, consultCost: 0, color: '#60a5fa', features: ['Все ИИ-советники без ограничений', 'Скидка 20% на услуги'] },
+                unlimited: { name: 'ИИ Безлимит (Месяц)', price: 390, fixedCost: 50, freeConsults: 0, consultCost: 0, color: '#34d399', features: ['Безлимитный ИИ (все советники)', 'Скидка 20% на услуги'] },
+                premium: { name: 'Премиум (Месяц)', price: 590, fixedCost: 50, freeConsults: 0, consultCost: 0, color: '#fbbf24', features: ['Безлимитный ИИ (все советники)', 'Скидка 20% на услуги'] }
             }
         };
 
         const formatMoney = (val) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(val);
+        const formatNumber = (val) => new Intl.NumberFormat('ru-RU').format(val);
+        const inputClass = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400';
 
         function App() {
+            // Переключатель периода
             const [billingPeriod, setBillingPeriod] = useState('annual');
+
+            // Глобальные стейты рынка
+            const [totalUsers, setTotalUsers] = useState(10000);
+            const [utilization, setUtilization] = useState(30);
+            const [shareBase, setShareBase] = useState(60);
+            const [shareUnlim, setShareUnlim] = useState(30);
+            const [sharePrem, setSharePrem] = useState(10);
+
+            // Стейты для B2B калькулятора
+            const [b2bTariff, setB2bTariff] = useState('base');
             const [b2bUsers, setB2bUsers] = useState(1000);
+            const [b2bPrice, setB2bPrice] = useState(120);
             const [b2bUtil, setB2bUtil] = useState(10);
-            
-            // Цены, которые можно менять в таблице
-            const [prices, setPrices] = useState({ base: 1200, unlimited: 3300, premium: 4990 });
-            
+
             const activeConfig = TARIFFS_CONFIG[billingPeriod];
 
+            // Расчет глобального дашборда
+            const globalData = useMemo(() => {
+                const totalShare = Number(shareBase) + Number(shareUnlim) + Number(sharePrem);
+                const uBase = Math.round(totalUsers * (shareBase / totalShare));
+                const uUnlim = Math.round(totalUsers * (shareUnlim / totalShare));
+                const uPrem = totalUsers - uBase - uUnlim;
+
+                const calcCost = (tariffKey, users) => {
+                    const t = activeConfig[tariffKey];
+                    // Базовая себестоимость + расходы на живые консультации (зависят от утилизации)
+                    const liveConsultCost = t.freeConsults * t.consultCost * (utilization / 100);
+                    const unitCost = t.fixedCost + liveConsultCost;
+                    return { rev: users * t.price, cost: users * unitCost, unitCost };
+                };
+
+                const baseM = calcCost('base', uBase);
+                const unlimM = calcCost('unlimited', uUnlim);
+                const premM = calcCost('premium', uPrem);
+
+                const createRow = (key, users, metrics) => ({
+                    name: activeConfig[key].name,
+                    color: activeConfig[key].color,
+                    users,
+                    rev: metrics.rev,
+                    cost: metrics.cost,
+                    margin: metrics.rev - metrics.cost,
+                    marginPct: metrics.rev > 0 ? ((metrics.rev - metrics.cost) / metrics.rev) * 100 : 0
+                });
+
+                return {
+                    rows: [
+                        createRow('base', uBase, baseM),
+                        createRow('unlimited', uUnlim, unlimM),
+                        createRow('premium', uPrem, premM)
+                    ],
+                    totalRev: baseM.rev + unlimM.rev + premM.rev,
+                    totalCost: baseM.cost + unlimM.cost + premM.cost,
+                    totalMargin: (baseM.rev - baseM.cost) + (unlimM.rev - unlimM.cost) + (premM.rev - premM.cost)
+                };
+            }, [billingPeriod, totalUsers, utilization, shareBase, shareUnlim, sharePrem]);
+
+            // Расчет B2B сделки
+            const b2bMetrics = useMemo(() => {
+                const t = activeConfig[b2bTariff];
+                const rev = b2bUsers * b2bPrice;
+                const liveCost = t.freeConsults * t.consultCost * (b2bUtil / 100);
+                // Для простоты расчета перерасхода: фиксированная часть + переменная.
+                const unitCost = t.fixedCost + liveCost; 
+                const cost = b2bUsers * unitCost;
+                
+                // Высчитываем стоимость 1% утилизации (максимальные расходы / 100)
+                const maxPossibleCost = t.fixedCost + (t.freeConsults * t.consultCost);
+                const costPerOnePercent = maxPossibleCost / 100;
+
+                return {
+                    rev, cost, margin: rev - cost, marginPct: rev > 0 ? ((rev - cost) / rev) * 100 : 0,
+                    overagePenalty: costPerOnePercent
+                };
+            }, [billingPeriod, b2bTariff, b2bUsers, b2bPrice, b2bUtil]);
+
             return (
-                <div className="max-w-5xl mx-auto p-6 bg-slate-50 min-h-screen">
-                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-                        <div className="flex justify-between items-center mb-8">
-                            <h1 className="text-2xl font-bold text-slate-900">B2B Калькулятор сделок</h1>
-                            <div className="flex bg-slate-200 p-1 rounded-lg">
-                                <button onClick={() => setBillingPeriod('annual')} className={`px-4 py-2 rounded-md ${billingPeriod === 'annual' ? 'bg-white shadow' : ''}`}>Год</button>
-                                <button onClick={() => setBillingPeriod('monthly')} className={`px-4 py-2 rounded-md ${billingPeriod === 'monthly' ? 'bg-white shadow' : ''}`}>Месяц</button>
+                <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 mb-6">
+                        
+                        {/* Заголовок и Переключатель */}
+                        <div className="bg-slate-900 px-6 py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Экономика платформы</h1>
+                                <p className="text-slate-400 text-sm mt-1">Интерактивный расчет и B2B калькулятор</p>
+                            </div>
+                            
+                            {/* Тот самый переключатель Год/Месяц */}
+                            <div className="flex bg-slate-800 p-1 rounded-lg border border-slate-700">
+                                <button 
+                                    onClick={() => setBillingPeriod('annual')}
+                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${billingPeriod === 'annual' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-300 hover:text-white'}`}
+                                >
+                                    Годовые тарифы
+                                </button>
+                                <button 
+                                    onClick={() => setBillingPeriod('monthly')}
+                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${billingPeriod === 'monthly' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-300 hover:text-white'}`}
+                                >
+                                    Ежемесячные тарифы
+                                </button>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-6 mb-8">
-                            <div>
-                                <label className="text-xs font-semibold uppercase text-slate-500">Общий объем лицензий</label>
-                                <input type="number" value={b2bUsers} onChange={e => setB2bUsers(Number(e.target.value))} className="w-full mt-1 p-2 border rounded" />
+                        {/* Блок B2B Сделки */}
+                        <div className="bg-blue-50/50 border-b border-slate-200 p-6">
+                            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                🤝 B2B: Калькулятор партнерской сделки
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-500 mb-1">Тариф</label>
+                                    <select value={b2bTariff} onChange={e => setB2bTariff(e.target.value)} className={inputClass}>
+                                        <option value="base">{activeConfig.base.name}</option>
+                                        <option value="unlimited">{activeConfig.unlimited.name}</option>
+                                        <option value="premium">{activeConfig.premium.name}</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-500 mb-1">Кол-во лицензий</label>
+                                    <input type="number" value={b2bUsers} onChange={e => setB2bUsers(Number(e.target.value))} className={inputClass} />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-500 mb-1">Цена для партнера (₽)</label>
+                                    <input type="number" value={b2bPrice} onChange={e => setB2bPrice(Number(e.target.value))} className={inputClass} />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-500 mb-1">Обещанная утилизация (%)</label>
+                                    <input type="number" value={b2bUtil} onChange={e => setB2bUtil(Number(e.target.value))} className={inputClass} />
+                                </div>
                             </div>
-                            <div>
-                                <label className="text-xs font-semibold uppercase text-slate-500">Прогнозируемая утилизация (%)</label>
-                                <input type="number" value={b2bUtil} onChange={e => setB2bUtil(Number(e.target.value))} className="w-full mt-1 p-2 border rounded" />
+
+                            <div className="flex flex-wrap gap-4 items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                <div className="flex-1 min-w-[200px]">
+                                    <p className="text-xs text-slate-500 font-medium">Маржа сделки</p>
+                                    <p className={`text-xl font-bold ${b2bMetrics.margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {formatMoney(b2bMetrics.margin)} ({b2bMetrics.marginPct.toFixed(1)}%)
+                                    </p>
+                                </div>
+                                <div className="flex-1 min-w-[300px] bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                    <p className="text-xs font-bold text-slate-700 mb-1">📄 Формулировка для договора:</p>
+                                    <p className="text-sm text-slate-600 font-mono">
+                                        Базовая стоимость {formatMoney(b2bPrice)} фиксируется при утилизации до {b2bUtil}%. За каждый 1% превышения лимита стоимость лицензии увеличивается на <span className="font-bold text-red-500">{formatMoney(b2bMetrics.overagePenalty)}</span>.
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
-                        <table className="w-full text-sm">
-                            <thead className="border-b">
-                                <tr className="text-left text-slate-400">
-                                    <th className="pb-2">Тариф и цена</th>
-                                    <th className="pb-2">Маржа сделки</th>
-                                    <th className="pb-2">Условие для договора</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {['base', 'unlimited', 'premium'].map((tKey) => {
-                                    const t = activeConfig[tKey];
-                                    const price = prices[tKey];
-                                    const rev = b2bUsers * price;
-                                    const liveCost = t.freeConsults * t.consultCost * (b2bUtil / 100);
-                                    const cost = b2bUsers * (t.fixedCost + liveCost);
-                                    const penalty = ((t.fixedCost + (t.freeConsults * t.consultCost)) / 100);
+                        {/* Глобальный Дашборд (старый функционал адаптирован под новые тарифы) */}
+                        <div className="p-6">
+                            <h3 className="text-lg font-bold text-slate-800 mb-4">Глобальный прогноз (Розница)</h3>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-1 space-y-6">
+                                    <div>
+                                        <div className="flex justify-between mb-1">
+                                            <label className="text-sm font-medium text-slate-600">Всего пользователей</label>
+                                            <span className="text-sm font-bold text-blue-600">{formatNumber(totalUsers)}</span>
+                                        </div>
+                                        <input type="range" min="100" max="50000" step="100" value={totalUsers} onChange={(e) => setTotalUsers(Number(e.target.value))} className="slider" />
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between mb-1">
+                                            <label className="text-sm font-medium text-slate-600">Средняя утилизация</label>
+                                            <span className="text-sm font-bold text-blue-600">{utilization}%</span>
+                                        </div>
+                                        <input type="range" min="0" max="100" step="5" value={utilization} onChange={(e) => setUtilization(Number(e.target.value))} className="slider" />
+                                    </div>
+                                </div>
 
-                                    return (
-                                        <tr key={tKey} className="border-b">
-                                            <td className="py-4 font-bold">{t.name}
-                                                <input type="number" value={price} onChange={e => setPrices({...prices, [tKey]: Number(e.target.value)})} className="block w-24 p-1 mt-1 border rounded text-blue-600" />
-                                            </td>
-                                            <td className="py-4 font-bold text-emerald-600">{formatMoney(rev - cost)}</td>
-                                            <td className="py-4 text-xs text-slate-500 italic">
-                                                При превышении {b2bUtil}%: +{formatMoney(penalty)} за 1%
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                                <div className="lg:col-span-2">
+                                    <div className="grid grid-cols-3 gap-4 mb-6">
+                                        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                                            <p className="text-sm text-blue-600">Выручка</p>
+                                            <p className="text-xl font-bold">{formatMoney(globalData.totalRev)}</p>
+                                        </div>
+                                        <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+                                            <p className="text-sm text-red-600">Затраты</p>
+                                            <p className="text-xl font-bold">{formatMoney(globalData.totalCost)}</p>
+                                        </div>
+                                        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                                            <p className="text-sm text-emerald-600">Маржа</p>
+                                            <p className="text-xl font-bold">{formatMoney(globalData.totalMargin)}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="h-64">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={globalData.rows}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                <XAxis dataKey="name" />
+                                                <YAxis tickFormatter={(val) => `${val / 1000}k`} />
+                                                <Tooltip formatter={(value) => formatMoney(value)} />
+                                                <Bar dataKey="margin" radius={[4, 4, 0, 0]}>
+                                                    {globalData.rows.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                                    ))}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             );
