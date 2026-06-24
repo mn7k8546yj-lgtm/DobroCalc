@@ -6,104 +6,77 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/recharts@2.1.12/umd/Recharts.js"></script>
     <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
 </head>
-<body class="bg-slate-100 p-8">
+<body class="bg-slate-100 p-4">
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        const { useState, useMemo } = React;
-        const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } = window.Recharts;
+        const { useState } = React;
 
-        const TARIFFS_CONFIG = {
+        const TARIFFS = {
             annual: {
-                base: { name: 'Базовый ИИ', price: 1200, fixedCost: 200, freeConsults: 0, consultCost: 0, color: '#3b82f6' },
-                unlimited: { name: 'ИИ Безлимит', price: 3300, fixedCost: 600, freeConsults: 0, consultCost: 0, color: '#10b981' },
-                premium: { name: 'Премиум', price: 4990, fixedCost: 600, freeConsults: 3, consultCost: 750, color: '#f59e0b' }
+                base: { name: 'Базовый ИИ', price: 1200, fixed: 200, queries: 1000, consults: 0 },
+                unlimited: { name: 'ИИ Безлимит', price: 3300, fixed: 600, queries: 5000, consults: 0 },
+                premium: { name: 'Премиум', price: 4990, fixed: 600, queries: 10000, consults: 3 }
             },
             monthly: {
-                base: { name: 'Базовый ИИ (Мес)', price: 150, fixedCost: 25, freeConsults: 0, consultCost: 0, color: '#60a5fa' },
-                unlimited: { name: 'ИИ Безлимит (Мес)', price: 390, fixedCost: 50, freeConsults: 0, consultCost: 0, color: '#34d399' },
-                premium: { name: 'Премиум (Мес)', price: 590, fixedCost: 50, freeConsults: 0, consultCost: 0, color: '#fbbf24' }
+                base: { name: 'Базовый ИИ (Мес)', price: 150, fixed: 25, queries: 100, consults: 0 },
+                unlimited: { name: 'ИИ Безлимит (Мес)', price: 390, fixed: 50, queries: 500, consults: 0 },
+                premium: { name: 'Премиум (Мес)', price: 590, fixed: 50, queries: 1000, consults: 0 }
             }
         };
 
-        const formatMoney = (val) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(val);
-
         function App() {
+            const [view, setView] = useState('retail'); // retail, b2b, info
             const [billing, setBilling] = useState('annual');
-            const [users, setUsers] = useState(10000);
+            const [users, setUsers] = useState(100);
             const [util, setUtil] = useState(30);
-            
-            // B2B стейты
-            const [b2bUsers, setB2bUsers] = useState(1000);
-            const [b2bUtil, setB2bUtil] = useState(10);
-            const [b2bPrices, setB2bPrices] = useState({ base: 120, unlimited: 300, premium: 500 });
+            const [selected, setSelected] = useState({ base: true, unlimited: false, premium: false });
 
-            const activeConfig = TARIFFS_CONFIG[billing];
-
-            const globalData = useMemo(() => {
-                return Object.keys(activeConfig).map(key => {
-                    const t = activeConfig[key];
-                    const rev = users * (t.price / (billing === 'annual' ? 1 : 1)); // Упрощенно
-                    const cost = users * (t.fixedCost + (t.freeConsults * t.consultCost * (util / 100)));
-                    return { name: t.name, margin: rev - cost, color: t.color };
-                });
-            }, [billing, users, util]);
+            const activeTariffs = TARIFFS[billing];
 
             return (
-                <div className="max-w-6xl mx-auto space-y-6">
-                    <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow border">
-                        <h1 className="text-2xl font-bold">Экономика Dobroservice</h1>
-                        <div className="flex gap-2">
-                            <button onClick={() => setBilling('annual')} className={`px-4 py-2 rounded ${billing === 'annual' ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>Год</button>
-                            <button onClick={() => setBilling('monthly')} className={`px-4 py-2 rounded ${billing === 'monthly' ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>Месяц</button>
-                        </div>
+                <div className="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
+                    <h1 className="text-2xl font-bold mb-6">Экономика Dobroservice</h1>
+                    
+                    <div className="flex gap-2 mb-6 border-b pb-4">
+                        <button onClick={() => setView('retail')} className={`px-4 py-2 rounded ${view === 'retail' ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>Розница</button>
+                        <button onClick={() => setView('b2b')} className={`px-4 py-2 rounded ${view === 'b2b' ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>B2B Партнер</button>
+                        <button onClick={() => setView('info')} className={`px-4 py-2 rounded ${view === 'info' ? 'bg-blue-600 text-white' : 'bg-slate-200'}`}>Тарифные планы</button>
                     </div>
 
-                    {/* B2B Матрица */}
-                    <div className="bg-white p-6 rounded-xl shadow border">
-                        <h3 className="text-lg font-bold mb-4">🤝 Матрица B2B предложений</h3>
+                    {view !== 'info' && (
                         <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div><label className="text-xs font-bold text-slate-500">Общий объем лицензий</label><input type="number" value={b2bUsers} onChange={e => setB2bUsers(Number(e.target.value))} className="w-full p-2 border rounded"/></div>
-                            <div><label className="text-xs font-bold text-slate-500">Прогнозируемая утилизация (%)</label><input type="number" value={b2bUtil} onChange={e => setB2bUtil(Number(e.target.value))} className="w-full p-2 border rounded"/></div>
+                            <div><label className="block text-xs font-bold">Лицензии</label><input type="number" value={users} onChange={e => setUsers(Number(e.target.value))} className="w-full p-2 border rounded"/></div>
+                            <div><label className="block text-xs font-bold">Утилизация (%)</label><input type="number" value={util} onChange={e => setUtil(Number(e.target.value))} className="w-full p-2 border rounded"/></div>
                         </div>
-                        <table className="w-full text-sm">
-                            <thead><tr className="text-left text-slate-400"><th>Тариф</th><th>Цена (за шт.)</th><th>Маржа</th><th>Условие для договора</th></tr></thead>
-                            <tbody>
-                                {Object.keys(activeConfig).map(key => {
-                                    const t = activeConfig[key];
-                                    const price = b2bPrices[key];
-                                    const cost = b2bUsers * (t.fixedCost + (t.freeConsults * t.consultCost * (b2bUtil / 100)));
-                                    const margin = (b2bUsers * price) - cost;
-                                    const penalty = ((t.fixedCost + (t.freeConsults * t.consultCost)) / 100);
-                                    return (
-                                        <tr key={key} className="border-t">
-                                            <td className="py-4 font-bold">{t.name}</td>
-                                            <td className="py-4"><input type="number" value={price} onChange={e => setB2bPrices({...b2bPrices, [key]: Number(e.target.value)})} className="w-20 p-1 border rounded font-bold text-blue-600"/></td>
-                                            <td className={`py-4 font-bold ${margin > 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatMoney(margin)}</td>
-                                            <td className="py-4 text-xs text-slate-500 italic">При >{b2bUtil}%: +{penalty.toFixed(0)} ₽/1%</td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                    )}
 
-                    {/* Графики */}
-                    <div className="bg-white p-6 rounded-xl shadow border h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={globalData}>
-                                <XAxis dataKey="name" />
-                                <YAxis />
-                                <Tooltip />
-                                <Bar dataKey="margin" fill="#8884d8">
-                                    {globalData.map((e, i) => <Cell key={i} fill={e.color} />)}
-                                </BarChart>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
+                    {view === 'retail' && Object.entries(activeTariffs).map(([k, t]) => (
+                        <div key={k} className="border p-4 rounded mb-2">
+                            <label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={selected[k]} onChange={() => setSelected({...selected, [k]: !selected[k]})}/> {t.name} ({t.price} ₽)</label>
+                            {selected[k] && (
+                                <div className="text-sm mt-2 text-slate-600">
+                                    Себестоимость: {((t.queries * (util/100) * 5) + (t.consults * 750)).toLocaleString()} ₽
+                                </div>
+                            )}
+                        </div>
+                    ))}
+
+                    {view === 'b2b' && Object.entries(activeTariffs).map(([k, t]) => (
+                        <div key={k} className="p-4 border-b">
+                            <div className="font-bold">{t.name}</div>
+                            <div className="text-emerald-600 font-bold">Партнерская цена: {(t.price * (1 - util/100)).toFixed(0)} ₽</div>
+                        </div>
+                    ))}
+
+                    {view === 'info' && Object.entries(TARIFFS.annual).map(([k, t]) => (
+                        <div key={k} className="mb-4 p-4 bg-slate-50 rounded">
+                            <h3 className="font-bold text-blue-700">{t.name}</h3>
+                            <p className="text-sm">Цена: {t.price} ₽ | Запросы: {t.queries} | Консультации: {t.consults}</p>
+                        </div>
+                    ))}
                 </div>
             );
         }
