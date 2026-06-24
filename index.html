@@ -94,8 +94,8 @@
                                 const tariffUsers = users[k] || 0;
                                 const tariffUtil = utils[k] || 0;
                                 
-                                // СЕБЕСТОИМОСТЬ: Утилизация влияет на консультации, фиксированные затраты убраны
-                                const consultsCost = t.consults * CONSULT_COST * (tariffUtil / 100);
+                                // СЕБЕСТОИМОСТЬ: Утилизация НЕ влияет на консультации, фиксированные затраты убраны
+                                const consultsCost = t.consults * CONSULT_COST;
                                 const totalCostPerUnit = consultsCost;
                                 
                                 const projectPrice = tariffUsers * t.price;
@@ -149,7 +149,7 @@
                                                     <ul className="list-disc list-inside space-y-2 ml-2">
                                                         <li>
                                                             Консультации: <b>{consultsCost.toLocaleString()} ₽</b> 
-                                                            <span className="text-slate-400 italic ml-1">({t.consults} шт. × {CONSULT_COST} ₽ × {tariffUtil}%)</span>
+                                                            <span className="text-slate-400 italic ml-1">({t.consults} шт. × {CONSULT_COST} ₽)</span>
                                                         </li>
                                                     </ul>
                                                 </div>
