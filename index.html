@@ -2,306 +2,1203 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Добросервис.Жизнь калькулятор</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Экономика Добросервис</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
-</head>
-<body class="bg-slate-50 p-6">
-    <div id="root"></div>
-
-    <script type="text/babel" data-type="module">
-        // Добавили useEffect для вызова окна с паролем при загрузке
-        const { useState, useEffect } = React;
-
-        // Жесткая себестоимость консультации
-        const CONSULT_COST = 750;
-
-        // Конфигурация тарифов: обновлены лимиты и скидки
-        const TARIFFS = {
-            annual: {
-                base: { 
-                    name: 'Базовый ИИ', price: 1200, fixed: 200, consults: 0, consultDiscount: 20,
-                    features: ['Доступ к платформе 24/7', 'Скидка 20% на покупку живых звонков']
-                },
-                unlimited: { 
-                    name: 'ИИ Безлимит', price: 3300, fixed: 600, consults: 1, consultDiscount: 20,
-                    features: ['Доступ к платформе 24/7', '1 устная консультация со специалистом (врач/юрист/психолог/ЗОЖ)', 'Скидка 20% на услуги сверх лимита']
-                },
-                premium: { 
-                    name: 'Премиум', price: 4990, fixed: 600, consults: 3, consultDiscount: 20,
-                    features: ['Доступ к платформе 24/7', '3 устные консультации со специалистом (врач/юрист/психолог/ЗОЖ)', 'Скидка 20% на услуги сверх лимита']
-                }
-            },
-            monthly: {
-                base: { 
-                    name: 'Базовый ИИ (Мес)', price: 150, fixed: 25, consults: 0, consultDiscount: 0,
-                    features: ['Доступ к платформе 24/7', 'Живые звонки приобретаются отдельно (без скидки)']
-                },
-                unlimited: { 
-                    name: 'ИИ Безлимит (Мес)', price: 390, fixed: 50, consults: 0, consultDiscount: 0,
-                    features: ['Доступ к платформе 24/7', 'Живые звонки приобретаются отдельно (без скидки)']
-                },
-                premium: { 
-                    name: 'Премиум (Мес)', price: 590, fixed: 50, consults: 0, consultDiscount: 0,
-                    features: ['Доступ к платформе 24/7', 'Живые звонки приобретаются отдельно (без скидки)']
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    screens: { xs: '480px' },
+                    maxWidth: { '8xl': '1920px' }
                 }
             }
         };
+    </script>
+    
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <script src="https://unpkg.com/react-is@18.2.0/umd/react-is.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    
+    <script src="https://unpkg.com/recharts@2.1.12/umd/Recharts.js"></script>
+    
+    <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
 
-        function App() {
-            // --- ЛОГИКА ЗАЩИТЫ ПАРОЛЕМ ---
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; overflow-x: hidden; }
+        .slider { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 4px; background: #e2e8f0; outline: none; touch-action: pan-y; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #3b82f6; cursor: pointer; transition: background .15s ease-in-out; }
+        .slider::-webkit-slider-thumb:hover { background: #2563eb; }
+        @media (max-width: 640px) {
+            .slider::-webkit-slider-thumb { width: 22px; height: 22px; }
+        }
+        .table-scroll-hint { display: none; }
+        @media (max-width: 1024px) {
+            .table-scroll-hint { display: block; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        const { useState, useMemo, useEffect } = React;
+        const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } = window.Recharts;
+
+        const TARIFF_KEYS = ['base', 'unlimited', 'premium'];
+        const PERIODS = ['annual', 'monthly'];
+        const PERIOD_LABELS = { annual: 'Годовой', monthly: 'Ежемесячный' };
+        const PERIOD_CALC_LABELS = { annual: 'за год', monthly: 'за месяц' };
+
+        // Единый каталог — источник правды для вкладки «Тарифы» и калькулятора
+        const buildDefaultTariffs = () => ({
+            annual: {
+                base: {
+                    name: 'Базовый ИИ', color: '#3b82f6',
+                    price: 1200, fixedCost: 200, freeConsults: 0, consultCost: 750,
+                    features: ['Все ИИ-советники (15 запр./сут)', 'Скидка 20% на услуги'],
+                    clientDescription: 'Годовой доступ ко всем ИИ-советникам с лимитом 15 запросов в сутки. Скидка 20% на услуги платформы. Эквивалент ~100 ₽/мес.',
+                    staffDescription: 'Массовый сегмент. Себестоимость ИИ до 200 ₽/год при 100% утилизации. Устные консультации не включены. Запрос к ИИ: 2–10 ₽ (модель).'
+                },
+                unlimited: {
+                    name: 'ИИ Безлимит', color: '#10b981',
+                    price: 3300, fixedCost: 600, freeConsults: 1, consultCost: 750,
+                    features: ['Безлимитный ИИ (все советники)', '1 живая консультация', 'Скидка 20% на услуги'],
+                    clientDescription: 'Безлимитный доступ ко всем ИИ-советникам на год. 1 живая консультация с экспертом в подарок. Скидка 20% на услуги.',
+                    staffDescription: 'Средний сегмент. Себестоимость ИИ до 600 ₽/год. Включена 1 устная консультация (750 ₽ себест. при 100% утилизации).'
+                },
+                premium: {
+                    name: 'Премиум', color: '#f59e0b',
+                    price: 4990, fixedCost: 600, freeConsults: 3, consultCost: 750,
+                    features: ['Безлимитный ИИ', '3 живые консультации в подарок', 'Скидка 20% сверх лимита'],
+                    clientDescription: 'Максимальный пакет: безлимитный ИИ + 3 живые консультации. Скидка 20% на услуги сверх включённого лимита.',
+                    staffDescription: 'Премиум-сегмент. ИИ до 600 ₽ + 3 устные консультации × 750 ₽ при полной утилизации. Следить за перерасходом консультаций.'
+                }
+            },
+            monthly: {
+                base: {
+                    name: 'Базовый ИИ', color: '#60a5fa',
+                    price: 150, fixedCost: 100, freeConsults: 0, consultCost: 750,
+                    features: ['Все ИИ-советники (15 запр./сут)', 'Скидка 20% на услуги', 'Консультации — отдельно по прайсу'],
+                    clientDescription: 'Месячный доступ к ИИ-советникам (до 15 запросов в сутки). Скидка 20% на услуги. Устные консультации с экспертом не входят — их можно докупить отдельно.',
+                    staffDescription: 'Входной месячный тариф. Себестоимость ИИ до 25 ₽/мес. Консультации в подписку не входят, продаются отдельно (себест. устной — по прайсу, ориентир 750 ₽).'
+                },
+                unlimited: {
+                    name: 'ИИ Безлимит', color: '#34d399',
+                    price: 390, fixedCost: 300, freeConsults: 0, consultCost: 750,
+                    features: ['Безлимитный ИИ (все советники)', 'Скидка 20% на услуги', 'Консультации — отдельно по прайсу'],
+                    clientDescription: 'Безлимитный ИИ на месяц и скидка 20% на услуги. Живые консультации не включены — покупка отдельно по прайсу платформы.',
+                    staffDescription: 'Месячный безлимит по ИИ. Себестоимость ИИ до 50 ₽/мес. Устные консультации не в тарифе — отдельная покупка, в экономике подписки не учитываются.'
+                },
+                premium: {
+                    name: 'Премиум', color: '#fbbf24',
+                    price: 590, fixedCost: 500, freeConsults: 0, consultCost: 750,
+                    features: ['Безлимитный ИИ (все советники)', 'Скидка 20% сверх лимита на услуги', 'Консультации — отдельно по прайсу'],
+                    clientDescription: 'Максимальный месячный пакет по ИИ: безлимитные советники и расширенная скидка на услуги. Консультации с экспертом — только отдельной покупкой.',
+                    staffDescription: 'Месячный премиум без включённых консультаций. Себестоимость ИИ до 50 ₽/мес. Отличие от Безлимит — уровень скидки и позиционирование. Консультации — доп. выручка по прайсу.'
+                }
+            }
+        });
+
+        const DEFAULT_ORAL_CONSULT_COST = 750;
+        const DEFAULT_AI_REQUEST_COST = 5;
+
+        const getTariff = (tariffs, period, key) => tariffs[period][key];
+
+        const formatMoney = (val) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(val);
+        const formatNumber = (val) => new Intl.NumberFormat('ru-RU').format(val);
+        const tariffLabel = (tariff) => `${tariff.name} (${formatMoney(tariff.price)})`;
+        const calcPartnerPrice = (tariff, utilPct) => tariff.price * (utilPct / 100);
+
+        const getTariffConsultCost = (tariff) => tariff.consultCost ?? DEFAULT_ORAL_CONSULT_COST;
+
+        // Ставки услуг фиксированы; утилизация масштабирует фактические затраты на лицензию
+        const calcUnitCostBreakdown = (tariff, utilPct) => {
+            const util = utilPct / 100;
+            const consults = tariff.freeConsults || 0;
+            const consultCost = getTariffConsultCost(tariff);
+            const aiRate = tariff.fixedCost;
+            const liveRate = consults * consultCost;
+            const fullUnitCost = aiRate + liveRate;
+            const aiCost = aiRate * util;
+            const liveCost = liveRate * util;
+            return {
+                aiRate,
+                liveRate,
+                aiCost,
+                liveCost,
+                consults,
+                consultCost,
+                fullUnitCost,
+                total: fullUnitCost * util,
+                utilPct
+            };
+        };
+
+        const calcUnitCost = (tariff, utilPct) =>
+            calcUnitCostBreakdown(tariff, utilPct).total;
+
+        const formatCostFormula = (tariff, utilPct) => {
+            const { aiRate, liveRate, consults, consultCost, fullUnitCost, total } = calcUnitCostBreakdown(tariff, utilPct);
+            const rateParts = [`ИИ ${formatMoney(aiRate)}`];
+            if (consults > 0) {
+                rateParts.push(`устные ${formatMoney(liveRate)} (${consults} × ${formatMoney(consultCost)})`);
+            }
+            return `Ставки: ${rateParts.join(' + ')} = ${formatMoney(fullUnitCost)} / лиц. × ${utilPct}% → ${formatMoney(total)} / лиц.`;
+        };
+
+        const calcB2BDealMetrics = (tariff, users, utilPct) => {
+            const partnerPrice = calcPartnerPrice(tariff, utilPct);
+            const breakdown = calcUnitCostBreakdown(tariff, utilPct);
+            const rev = users * partnerPrice;
+            const cost = users * breakdown.total;
+            const margin = rev - cost;
+            const effectiveUsers = users * (utilPct / 100);
+            return {
+                partnerPrice,
+                rev,
+                cost,
+                margin,
+                marginPct: rev > 0 ? (margin / rev) * 100 : 0,
+                effectiveUsers,
+                fullUnitCost: breakdown.fullUnitCost,
+                unitCost: breakdown.total
+            };
+        };
+
+        const formatB2BDealFormula = (tariff, users, utilPct) => {
+            const { partnerPrice, effectiveUsers, fullUnitCost, rev, cost, margin } = calcB2BDealMetrics(tariff, users, utilPct);
+            const effLabel = Number.isInteger(effectiveUsers) ? formatNumber(effectiveUsers) : effectiveUsers.toFixed(1).replace('.', ',');
+            return {
+                revenueLine: `Выручка: ${formatNumber(users)} × ${formatMoney(partnerPrice)} (${formatMoney(tariff.price)} × ${utilPct}%) = ${formatMoney(rev)}`,
+                costLine: `Затраты: ${effLabel} чел. × ${formatMoney(fullUnitCost)} (ИИ + устные) = ${formatMoney(cost)}`,
+                marginLine: `Маржа: ${formatMoney(rev)} − ${formatMoney(cost)} = ${formatMoney(margin)}`
+            };
+        };
+
+        const calcTariffMetrics = (tariff, users, utilPct, unitPrice = tariff.price) => {
+            const unitCost = calcUnitCost(tariff, utilPct);
+            const rev = users * unitPrice;
+            const cost = users * unitCost;
+            const margin = rev - cost;
+            const breakdown = calcUnitCostBreakdown(tariff, utilPct);
+            return {
+                rev,
+                cost,
+                unitCost,
+                aiUnitCost: breakdown.aiCost,
+                consultUnitCost: breakdown.liveCost,
+                margin,
+                marginPct: rev > 0 ? (margin / rev) * 100 : 0
+            };
+        };
+
+        const inputClass = 'w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-slate-200 rounded-lg bg-white text-slate-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 min-h-[44px] sm:min-h-0';
+        const inputSmClass = 'w-full sm:w-24 px-2 py-2 sm:py-1.5 text-base sm:text-sm border border-slate-200 rounded-lg bg-white text-slate-800 tabular-nums text-right focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 min-h-[44px] sm:min-h-0';
+
+        function SliderWithInput({ label, value, min, max, step, suffix, hint, onChange }) {
+            const clamp = (v) => Math.min(max, Math.max(min, v));
+            return (
+                <div>
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 gap-2">
+                        <label className="text-sm font-medium text-slate-600 leading-snug">{label}</label>
+                        <div className="flex items-center gap-1.5 sm:shrink-0 w-full sm:w-auto">
+                            <input
+                                type="number"
+                                min={min}
+                                max={max}
+                                step={step}
+                                value={value}
+                                onChange={(e) => onChange(clamp(Number(e.target.value) || 0))}
+                                className={`${inputSmClass} sm:w-28`}
+                            />
+                            {suffix && <span className="text-xs text-slate-400 shrink-0">{suffix}</span>}
+                        </div>
+                    </div>
+                    <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="slider w-full" />
+                    {hint && <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">{hint}</p>}
+                </div>
+            );
+        }
+
+        function TariffFeaturesList({ features }) {
+            return (
+                <ul className="text-xs text-slate-500 space-y-0.5 mt-2 list-disc pl-4 marker:text-slate-300">
+                    {features.map((f, i) => <li key={i}>{f}</li>)}
+                </ul>
+            );
+        }
+
+        function TariffEconomicsEditor({
+            tariff,
+            period,
+            tariffKey,
+            periodLabel,
+            onUpdateTariff,
+            users,
+            utilization,
+            onUsersChange,
+            onUtilChange
+        }) {
+            return (
+                <div className="rounded-lg border border-slate-200 p-3 bg-white">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-2">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tariff.color }}></span>
+                        <span className="text-sm font-semibold text-slate-800">{tariff.name}</span>
+                        <span className="text-xs text-slate-400 sm:ml-auto">{formatMoney(tariff.price)} {periodLabel}</span>
+                    </div>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Для клиента</p>
+                    <p className="text-xs text-slate-600 leading-relaxed mb-3">{tariff.clientDescription}</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-3 border-t border-slate-100">
+                        <div>
+                            <label className="block text-slate-500 mb-1">Цена ({periodLabel})</label>
+                            <input
+                                type="number"
+                                min="0"
+                                step="10"
+                                value={tariff.price}
+                                onChange={(e) => onUpdateTariff(period, tariffKey, 'price', e.target.value)}
+                                className={inputClass}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-slate-500 mb-1">Себест. ИИ (макс.)</label>
+                            <input
+                                type="number"
+                                min="0"
+                                step="5"
+                                value={tariff.fixedCost}
+                                onChange={(e) => onUpdateTariff(period, tariffKey, 'fixedCost', e.target.value)}
+                                className={inputClass}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-slate-500 mb-1">Устных консультаций в тарифе</label>
+                            <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={tariff.freeConsults}
+                                onChange={(e) => onUpdateTariff(period, tariffKey, 'freeConsults', e.target.value)}
+                                className={inputClass}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-slate-500 mb-1">Себест. 1 устной консультации</label>
+                            <input
+                                type="number"
+                                min="0"
+                                step="50"
+                                value={tariff.consultCost ?? DEFAULT_ORAL_CONSULT_COST}
+                                onChange={(e) => onUpdateTariff(period, tariffKey, 'consultCost', e.target.value)}
+                                className={inputClass}
+                            />
+                        </div>
+                        <p className="col-span-2 text-[10px] text-slate-400">Параметры тарифа синхронизируются со вкладкой «Тарифы»</p>
+                        <div className="col-span-2 pt-3 border-t border-slate-100 space-y-3">
+                            <SliderWithInput
+                                label="Клиентов на тарифе"
+                                value={users}
+                                min={0}
+                                max={50000}
+                                step={1}
+                                suffix="чел."
+                                onChange={onUsersChange}
+                            />
+                            <SliderWithInput
+                                label="Утилизация сервиса"
+                                value={utilization}
+                                min={0}
+                                max={100}
+                                step={1}
+                                suffix="%"
+                                hint="Доля лицензий, по которым реально возникают затраты (ставки услуг не меняются)"
+                                onChange={onUtilChange}
+                            />
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function TariffsCatalogView({ tariffs, onUpdateTariff }) {
+            const rows = PERIODS.flatMap((period) =>
+                TARIFF_KEYS.map((key) => ({ period, key, tariff: tariffs[period][key] }))
+            );
+
+            return (
+                <div className="p-4 sm:p-6 border-t border-slate-100">
+                    <div className="mb-4 sm:mb-6">
+                        <h3 className="text-base sm:text-lg font-bold text-slate-800">Справочник тарифов</h3>
+                        <p className="text-xs sm:text-sm text-slate-500 mt-1">Все изменения здесь сразу применяются в B2B-калькуляторе и блоке «Розница».</p>
+                    </div>
+
+                    <p className="table-scroll-hint text-xs text-slate-400 mb-2">← Прокрутите таблицу влево-вправо →</p>
+                    <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm -mx-1 px-1 sm:mx-0 sm:px-0">
+                        <table className="w-full text-xs sm:text-sm text-left min-w-[1000px]">
+                            <thead className="bg-slate-800 text-slate-200 text-[10px] sm:text-xs uppercase tracking-wider">
+                                <tr>
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3">Тариф</th>
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3">Период</th>
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-right">Цена</th>
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3">Для клиента</th>
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-right">Себест. ИИ</th>
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-right">Устн. конс.</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {rows.map(({ period, key, tariff }) => (
+                                    <tr key={`${period}-${key}`} className="hover:bg-slate-50 align-top">
+                                        <td className="px-2 sm:px-4 py-3 sm:py-4">
+                                            <div className="flex items-center gap-2 font-semibold text-slate-800">
+                                                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: tariff.color }}></span>
+                                                {tariff.name}
+                                            </div>
+                                        </td>
+                                        <td className="px-2 sm:px-4 py-3 sm:py-4 text-slate-600 whitespace-nowrap">{PERIOD_LABELS[period]}</td>
+                                        <td className="px-2 sm:px-4 py-3 sm:py-4 text-right">
+                                            <input type="number" min="0" step="10" value={tariff.price} onChange={(e) => onUpdateTariff(period, key, 'price', e.target.value)} className={`${inputSmClass} sm:w-24`} />
+                                        </td>
+                                        <td className="px-2 sm:px-4 py-3 sm:py-4 max-w-[200px] sm:max-w-xs">
+                                            <textarea rows={3} value={tariff.clientDescription} onChange={(e) => onUpdateTariff(period, key, 'clientDescription', e.target.value)} className="w-full text-xs border border-slate-200 rounded-lg p-2 text-slate-600 resize-y min-h-[72px]" />
+                                        </td>
+                                        <td className="px-2 sm:px-4 py-3 sm:py-4 text-right">
+                                            <input type="number" min="0" step="5" value={tariff.fixedCost} onChange={(e) => onUpdateTariff(period, key, 'fixedCost', e.target.value)} className={`${inputSmClass} sm:w-20`} />
+                                        </td>
+                                        <td className="px-2 sm:px-4 py-3 sm:py-4 text-right">
+                                            <label className="block text-[10px] text-slate-400 mb-1">Кол-во</label>
+                                            <input type="number" min="0" step="1" value={tariff.freeConsults} onChange={(e) => onUpdateTariff(period, key, 'freeConsults', e.target.value)} className={`${inputSmClass} sm:w-16`} />
+                                            <label className="block text-[10px] text-slate-400 mb-1 mt-2">₽ / шт.</label>
+                                            <input type="number" min="0" step="50" value={tariff.consultCost ?? DEFAULT_ORAL_CONSULT_COST} onChange={(e) => onUpdateTariff(period, key, 'consultCost', e.target.value)} className={`${inputSmClass} sm:w-20`} />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        const CALC_VERSION_STORAGE_KEY = 'dobroservice_calc_version';
+
+        const loadCalcVersion = () => {
+            try {
+                const saved = localStorage.getItem(CALC_VERSION_STORAGE_KEY);
+                if (saved === 'extended') return 'extended';
+                return 'simple';
+            } catch {
+                return 'simple';
+            }
+        };
+
+        const persistCalcVersion = (version) => {
+            try {
+                localStorage.setItem(CALC_VERSION_STORAGE_KEY, version);
+            } catch { /* private mode / quota */ }
+        };
+
+        const TARIFFS_CLIENT_DESC_STORAGE_KEY = 'dobroservice_tariffs_client_descriptions';
+
+        const persistClientDescriptions = (tariffs) => {
+            try {
+                const saved = {};
+                PERIODS.forEach((period) => {
+                    saved[period] = {};
+                    TARIFF_KEYS.forEach((key) => {
+                        saved[period][key] = tariffs[period][key].clientDescription;
+                    });
+                });
+                localStorage.setItem(TARIFFS_CLIENT_DESC_STORAGE_KEY, JSON.stringify(saved));
+            } catch { /* private mode / quota */ }
+        };
+
+        const loadInitialTariffs = () => {
+            const defaults = buildDefaultTariffs();
+            const tariffs = buildDefaultTariffs();
+            try {
+                const raw = localStorage.getItem(TARIFFS_CLIENT_DESC_STORAGE_KEY);
+                if (raw) {
+                    const saved = JSON.parse(raw);
+                    PERIODS.forEach((period) => {
+                        TARIFF_KEYS.forEach((key) => {
+                            if (saved[period]?.[key] !== undefined) {
+                                tariffs[period][key] = { ...tariffs[period][key], clientDescription: saved[period][key] };
+                            }
+                        });
+                    });
+                }
+            } catch { /* ignore corrupt storage */ }
+            PERIODS.forEach((period) => {
+                TARIFF_KEYS.forEach((key) => {
+                    if (tariffs[period][key].consultCost === undefined) {
+                        tariffs[period][key].consultCost = defaults[period][key].consultCost;
+                    }
+                });
+            });
+            return tariffs;
+        };
+
+        function CalculatorVersionPicker({ version, onChange }) {
+            const options = [
+                { id: 'extended', label: 'Расширенный', short: 'Полный', desc: 'B2B, прогноз, справочник тарифов' },
+                { id: 'simple', label: 'Упрощённый', short: 'Быстрый', desc: 'Компактный расчёт без лишних блоков' }
+            ];
+
+            return (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-5">
+                    <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800">Режим калькулятора</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Выбор сохраняется в браузере</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto sm:min-w-[320px]">
+                        {options.map((opt) => (
+                            <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => onChange(opt.id)}
+                                className={`px-3 py-2.5 sm:py-2 rounded-lg text-left transition-all ${
+                                    version === opt.id
+                                        ? opt.id === 'extended'
+                                            ? 'bg-blue-500 text-white shadow-sm'
+                                            : 'bg-violet-500 text-white shadow-sm'
+                                        : 'text-slate-600 hover:bg-slate-50'
+                                }`}
+                            >
+                                <span className="block text-xs sm:text-sm font-semibold leading-tight">
+                                    <span className="sm:hidden">{opt.short}</span>
+                                    <span className="hidden sm:inline">{opt.label}</span>
+                                </span>
+                                <span className={`block text-[10px] mt-0.5 leading-snug ${version === opt.id ? 'text-white/80' : 'text-slate-400'}`}>
+                                    {opt.desc}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        // =============================================================================
+        // УПРОЩЁННЫЙ КАЛЬКУЛЯТОР — Добросервис.Жизнь
+        // =============================================================================
+        const SIMPLE_CALC_PASSWORD = 'Dobro2024';
+        const SIMPLE_AUTH_SESSION_KEY = 'dobroservice_simple_auth';
+
+        const updateTariffInCatalog = (setTariffs, period, key, field, raw) => {
+            setTariffs((prev) => {
+                const next = { ...prev, [period]: { ...prev[period], [key]: { ...prev[period][key] } } };
+                if (field === 'features' && Array.isArray(raw)) {
+                    next[period][key].features = raw;
+                } else if (field === 'clientDescription' || field === 'staffDescription') {
+                    next[period][key][field] = raw;
+                    if (field === 'clientDescription') {
+                        persistClientDescriptions(next);
+                    }
+                } else {
+                    const parsed = raw === '' ? 0 : Math.max(0, Number(raw));
+                    next[period][key][field] = parsed;
+                }
+                return next;
+            });
+        };
+
+        const buildActiveTariffMap = (tariffs, period) => {
+            const map = {};
+            TARIFF_KEYS.forEach((k) => { map[k] = getTariff(tariffs, period, k); });
+            return map;
+        };
+
+        const simpleInputClass = 'w-full p-2.5 sm:p-2 text-base sm:text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 min-h-[44px] sm:min-h-0';
+
+        function SimpleCalculatorApp({ tariffs, onSwitchToExtended }) {
             const [isAuthenticated, setIsAuthenticated] = useState(false);
             const [isPrompted, setIsPrompted] = useState(false);
 
+            const [view, setView] = useState('retail');
+            const [billing, setBilling] = useState('annual');
+            const [selected, setSelected] = useState({ base: true, unlimited: true, premium: true });
+            const [users, setUsers] = useState({ base: 0, unlimited: 0, premium: 0 });
+            const [utils, setUtils] = useState({ base: 0, unlimited: 0, premium: 0 });
+
             useEffect(() => {
-                const pass = prompt("Введите пароль для доступа к калькулятору:");
-                // ТВОЙ ПАРОЛЬ ТУТ (в кавычках):
-                if (pass === "Dobro2024") { 
+                if (sessionStorage.getItem(SIMPLE_AUTH_SESSION_KEY) === '1') {
                     setIsAuthenticated(true);
+                    setIsPrompted(true);
+                    return;
+                }
+                const pass = prompt('Введите пароль для доступа к упрощённому калькулятору:');
+                if (pass === SIMPLE_CALC_PASSWORD) {
+                    setIsAuthenticated(true);
+                    sessionStorage.setItem(SIMPLE_AUTH_SESSION_KEY, '1');
                 }
                 setIsPrompted(true);
             }, []);
 
-            // --- ОСНОВНЫЕ СОСТОЯНИЯ КАЛЬКУЛЯТОРА ---
-            const [view, setView] = useState('retail');
-            const [billing, setBilling] = useState('annual');
-            
-            const [selected, setSelected] = useState({ base: true, unlimited: true, premium: true });
-            const [users, setUsers] = useState({ base: 100, unlimited: 10, premium: 5 });
-            const [utils, setUtils] = useState({ base: 10, unlimited: 10, premium: 10 });
-
-            // Если пароль еще не ввели (окно висит), ничего не рисуем
-            if (!isPrompted) return null;
-
-            // Если ввели неверный пароль — показываем заглушку
-            if (!isAuthenticated) {
-                return (
-                    <div className="max-w-2xl mx-auto mt-20 bg-white p-10 rounded-2xl shadow-sm border border-slate-200 text-center">
-                        <h1 className="text-3xl font-bold text-slate-800 mb-4">Доступ закрыт 🔒</h1>
-                        <p className="text-slate-600 mb-8">Вы ввели неверный пароль или отменили ввод.</p>
-                        <button onClick={() => window.location.reload()} className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium shadow hover:bg-blue-700 transition">
-                            Обновить страницу и попробовать снова
-                        </button>
-                    </div>
-                );
-            }
-
-            // --- ЕСЛИ ПАРОЛЬ ВЕРНЫЙ, ПОКАЗЫВАЕМ КАЛЬКУЛЯТОР ---
-            const activeTariffs = TARIFFS[billing];
+            const activeTariffs = useMemo(() => buildActiveTariffMap(tariffs, billing), [tariffs, billing]);
+            const consultCostFor = (t) => getTariffConsultCost(t);
 
             const handleUserChange = (key, value) => {
-                setUsers({ ...users, [key]: Number(value) });
+                setUsers((prev) => ({ ...prev, [key]: Number(value) || 0 }));
             };
 
             const handleUtilChange = (key, value) => {
-                setUtils({ ...utils, [key]: Number(value) });
+                setUtils((prev) => ({ ...prev, [key]: Number(value) || 0 }));
             };
+
+            const toggleSelected = (key) => {
+                setSelected((prev) => ({ ...prev, [key]: !prev[key] }));
+            };
+
+            if (!isPrompted) return null;
+
+            if (!isAuthenticated) {
+                return (
+                    <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+                        <div className="p-6 sm:p-10 text-center">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-4">Доступ закрыт</h1>
+                            <p className="text-slate-600 mb-8 text-sm sm:text-base">Вы ввели неверный пароль или отменили ввод.</p>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    sessionStorage.removeItem(SIMPLE_AUTH_SESSION_KEY);
+                                    window.location.reload();
+                                }}
+                                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium shadow hover:bg-blue-700 transition min-h-[44px]"
+                            >
+                                Обновить страницу и попробовать снова
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
 
             let grandRetailRevenue = 0;
             let grandRetailCost = 0;
             let grandB2BTotal = 0;
 
             return (
-                <div className="max-w-5xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-                    <h1 className="text-3xl font-bold text-slate-800 mb-8">Добросервис.Жизнь калькулятор</h1>
-                    
-                    {/* Навигация */}
-                    <div className="flex flex-wrap gap-3 mb-8 border-b pb-6">
-                        <button onClick={() => setView('retail')} className={`px-5 py-2 rounded-lg font-medium transition ${view === 'retail' ? 'bg-blue-600 text-white shadow' : 'bg-slate-100 text-slate-600'}`}>Розница</button>
-                        <button onClick={() => setView('b2b')} className={`px-5 py-2 rounded-lg font-medium transition ${view === 'b2b' ? 'bg-blue-600 text-white shadow' : 'bg-slate-100 text-slate-600'}`}>B2B Партнер</button>
-                        <button onClick={() => setView('info')} className={`px-5 py-2 rounded-lg font-medium transition ${view === 'info' ? 'bg-blue-600 text-white shadow' : 'bg-slate-100 text-slate-600'}`}>Тарифные планы</button>
-                        
-                        <div className="ml-auto flex bg-slate-100 p-1 rounded-lg">
-                            <button onClick={() => setBilling('annual')} className={`px-4 py-1 rounded-md transition ${billing === 'annual' ? 'bg-white shadow text-blue-700 font-bold' : 'text-slate-600'}`}>Год</button>
-                            <button onClick={() => setBilling('monthly')} className={`px-4 py-1 rounded-md transition ${billing === 'monthly' ? 'bg-white shadow text-blue-700 font-bold' : 'text-slate-600'}`}>Месяц</button>
-                        </div>
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+                    <div className="bg-gradient-to-r from-violet-900 to-slate-900 px-4 sm:px-6 py-4 sm:py-5">
+                        <h1 className="text-lg sm:text-2xl font-bold text-white tracking-tight">Добросервис.Жизнь калькулятор</h1>
+                        <p className="text-violet-200/80 text-xs sm:text-sm mt-1">Розница, B2B и тарифные планы · данные из общего справочника</p>
                     </div>
 
-                    {/* Раздел: Розница */}
-                    {view === 'retail' && (
-                        <div>
-                            {Object.entries(activeTariffs).map(([k, t]) => {
-                                const tariffUsers = users[k] || 0;
-                                const tariffUtil = utils[k] || 0;
-                                
-                                // СЕБЕСТОИМОСТЬ: Утилизация НЕ влияет на консультации, фиксированные затраты убраны
-                                const consultsCost = t.consults * CONSULT_COST;
-                                const totalCostPerUnit = consultsCost;
-                                
-                                const projectPrice = tariffUsers * t.price;
-                                const totalCostProject = tariffUsers * totalCostPerUnit;
-                                const margin = projectPrice - totalCostProject;
-                                
-                                if (selected[k]) {
-                                    grandRetailRevenue += projectPrice;
-                                    grandRetailCost += totalCostProject;
-                                }
-                                
-                                return (
-                                    <div key={k} className={`border rounded-xl p-6 mb-4 transition ${selected[k] ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200'}`}>
-                                        <div className="flex items-center justify-between mb-4">
-                                            <label className="flex items-center gap-3 font-bold text-xl cursor-pointer">
-                                                <input type="checkbox" className="w-5 h-5" checked={selected[k]} onChange={() => setSelected({...selected, [k]: !selected[k]})}/> 
-                                                {t.name} — <span className="text-blue-600">{t.price} ₽</span>
+                    <div className="p-4 sm:p-6 lg:p-8">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center mb-6 sm:mb-8 border-b border-slate-100 pb-5 sm:pb-6">
+                            <div className="flex flex-wrap gap-2 sm:gap-3">
+                                <button type="button" onClick={() => setView('retail')} className={`px-4 sm:px-5 py-2 rounded-lg text-sm font-medium transition min-h-[44px] sm:min-h-0 ${view === 'retail' ? 'bg-blue-600 text-white shadow' : 'bg-slate-100 text-slate-600'}`}>Розница</button>
+                                <button type="button" onClick={() => setView('b2b')} className={`px-4 sm:px-5 py-2 rounded-lg text-sm font-medium transition min-h-[44px] sm:min-h-0 ${view === 'b2b' ? 'bg-blue-600 text-white shadow' : 'bg-slate-100 text-slate-600'}`}>B2B Партнер</button>
+                                <button type="button" onClick={() => setView('info')} className={`px-4 sm:px-5 py-2 rounded-lg text-sm font-medium transition min-h-[44px] sm:min-h-0 ${view === 'info' ? 'bg-blue-600 text-white shadow' : 'bg-slate-100 text-slate-600'}`}>Тарифные планы</button>
+                            </div>
+                            <div className="flex bg-slate-100 p-1 rounded-lg w-full sm:w-auto sm:ml-auto">
+                                <button type="button" onClick={() => setBilling('annual')} className={`flex-1 sm:flex-none px-4 py-2 sm:py-1 rounded-md transition text-sm min-h-[40px] sm:min-h-0 ${billing === 'annual' ? 'bg-white shadow text-blue-700 font-bold' : 'text-slate-600'}`}>Год</button>
+                                <button type="button" onClick={() => setBilling('monthly')} className={`flex-1 sm:flex-none px-4 py-2 sm:py-1 rounded-md transition text-sm min-h-[40px] sm:min-h-0 ${billing === 'monthly' ? 'bg-white shadow text-blue-700 font-bold' : 'text-slate-600'}`}>Месяц</button>
+                            </div>
+                        </div>
+
+                        {view === 'retail' && (
+                            <div>
+                                {Object.entries(activeTariffs).map(([k, t]) => {
+                                    const tariffUsers = users[k] || 0;
+                                    const tariffUtil = utils[k] || 0;
+                                    const consultsCost = (t.freeConsults || 0) * consultCostFor(t);
+                                    const totalCostPerUnit = consultsCost;
+                                    const projectPrice = tariffUsers * t.price;
+                                    const totalCostProject = tariffUsers * totalCostPerUnit;
+                                    const margin = projectPrice - totalCostProject;
+
+                                    if (selected[k]) {
+                                        grandRetailRevenue += projectPrice;
+                                        grandRetailCost += totalCostProject;
+                                    }
+
+                                    return (
+                                        <div key={k} className={`border rounded-xl p-4 sm:p-6 mb-4 transition ${selected[k] ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200'}`}>
+                                            <label className="flex items-start sm:items-center gap-3 font-bold text-base sm:text-xl cursor-pointer">
+                                                <input type="checkbox" className="w-5 h-5 mt-1 sm:mt-0 shrink-0" checked={selected[k]} onChange={() => toggleSelected(k)} />
+                                                <span>{t.name} — <span className="text-blue-600">{t.price.toLocaleString('ru-RU')} ₽</span></span>
                                             </label>
+
+                                            {selected[k] && (
+                                                <div className="bg-white p-4 sm:p-5 rounded-lg shadow-inner border border-slate-100 mt-4">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Количество лицензий</label>
+                                                            <input type="number" value={tariffUsers} onChange={(e) => handleUserChange(k, e.target.value)} className={simpleInputClass} />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Утилизация</label>
+                                                            <input type="number" value={tariffUtil} onChange={(e) => handleUtilChange(k, e.target.value)} className={simpleInputClass} />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 xs:grid-cols-3 gap-3 sm:gap-4 text-sm mb-4">
+                                                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                                            <div className="text-slate-500 text-xs uppercase mb-1">Выручка (по тарифу)</div>
+                                                            <div className="font-bold text-lg sm:text-xl break-words">{projectPrice.toLocaleString('ru-RU')} ₽</div>
+                                                        </div>
+                                                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                                            <div className="text-slate-500 text-xs uppercase mb-1">Себестоимость</div>
+                                                            <div className="font-bold text-lg sm:text-xl break-words">{totalCostProject.toLocaleString('ru-RU')} ₽</div>
+                                                        </div>
+                                                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                                            <div className="text-slate-500 text-xs uppercase mb-1">Маржа</div>
+                                                            <div className={`font-bold text-lg sm:text-xl break-words ${margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{margin.toLocaleString('ru-RU')} ₽</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="text-sm text-slate-600 border-t pt-4 space-y-2">
+                                                        <p className="font-bold text-slate-800">Расшифровка себестоимости на 1 лицензию ({totalCostPerUnit.toLocaleString('ru-RU')} ₽):</p>
+                                                        <ul className="list-disc list-inside space-y-2 ml-2">
+                                                            <li>
+                                                                Консультации: <b>{consultsCost.toLocaleString('ru-RU')} ₽</b>
+                                                                <span className="text-slate-400 italic ml-1">({t.freeConsults || 0} шт. × {consultCostFor(t).toLocaleString('ru-RU')} ₽)</span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
+                                    );
+                                })}
 
-                                        {selected[k] && (
-                                            <div className="bg-white p-5 rounded-lg shadow-inner border border-slate-100">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Количество лицензий</label>
-                                                        <input type="number" value={tariffUsers} onChange={e => handleUserChange(k, e.target.value)} className="w-full p-2 border rounded-md outline-none focus:ring-2 focus:ring-blue-500"/>
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Утилизация (%)</label>
-                                                        <input type="number" value={tariffUtil} onChange={e => handleUtilChange(k, e.target.value)} className="w-full p-2 border rounded-md outline-none focus:ring-2 focus:ring-blue-500"/>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
-                                                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                                                        <div className="text-slate-500 text-xs uppercase mb-1">Выручка (по тарифу)</div>
-                                                        <div className="font-bold text-xl">{projectPrice.toLocaleString()} ₽</div>
-                                                    </div>
-                                                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                                                        <div className="text-slate-500 text-xs uppercase mb-1">Себестоимость</div>
-                                                        <div className="font-bold text-xl">{totalCostProject.toLocaleString()} ₽</div>
-                                                    </div>
-                                                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                                                        <div className="text-slate-500 text-xs uppercase mb-1">Маржа</div>
-                                                        <div className={`font-bold text-xl ${margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{margin.toLocaleString()} ₽</div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div className="text-sm text-slate-600 border-t pt-4 space-y-2">
-                                                    <p className="font-bold text-slate-800">Расшифровка себестоимости на 1 лицензию ({totalCostPerUnit.toLocaleString()} ₽):</p>
-                                                    <ul className="list-disc list-inside space-y-2 ml-2">
-                                                        <li>
-                                                            Консультации: <b>{consultsCost.toLocaleString()} ₽</b> 
-                                                            <span className="text-slate-400 italic ml-1">({t.consults} шт. × {CONSULT_COST} ₽)</span>
-                                                        </li>
-                                                    </ul>
-                                                </div>
+                                <div className="mt-6 sm:mt-8 bg-slate-800 text-white p-4 sm:p-6 rounded-xl shadow-lg">
+                                    <h2 className="text-lg sm:text-xl font-bold mb-4 uppercase text-slate-300">Сумма Итого (Розница)</h2>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                                        <div>
+                                            <div className="text-slate-400 text-sm mb-1">Общая выручка:</div>
+                                            <div className="text-2xl sm:text-3xl font-bold break-words">{grandRetailRevenue.toLocaleString('ru-RU')} ₽</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-slate-400 text-sm mb-1">Общая себестоимость:</div>
+                                            <div className="text-2xl sm:text-3xl font-bold break-words">{grandRetailCost.toLocaleString('ru-RU')} ₽</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-slate-400 text-sm mb-1">Итоговая маржа:</div>
+                                            <div className={`text-2xl sm:text-3xl font-bold break-words ${grandRetailRevenue - grandRetailCost >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                {(grandRetailRevenue - grandRetailCost).toLocaleString('ru-RU')} ₽
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-
-                            <div className="mt-8 bg-slate-800 text-white p-6 rounded-xl shadow-lg">
-                                <h2 className="text-xl font-bold mb-4 uppercase text-slate-300">Сумма Итого (Розница)</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div>
-                                        <div className="text-slate-400 text-sm mb-1">Общая выручка:</div>
-                                        <div className="text-3xl font-bold">{grandRetailRevenue.toLocaleString()} ₽</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-slate-400 text-sm mb-1">Общая себестоимость:</div>
-                                        <div className="text-3xl font-bold">{grandRetailCost.toLocaleString()} ₽</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-slate-400 text-sm mb-1">Итоговая маржа:</div>
-                                        <div className={`text-3xl font-bold ${grandRetailRevenue - grandRetailCost >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                            {(grandRetailRevenue - grandRetailCost).toLocaleString()} ₽
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Раздел: B2B */}
-                    {view === 'b2b' && (
-                        <div>
-                            {Object.entries(activeTariffs).map(([k, t]) => {
-                                const tariffUsers = users[k] || 0;
-                                const tariffUtil = utils[k] || 0;
-                                
-                                const partnerPrice = t.price * (tariffUtil / 100);
-                                const totalPartnerPrice = partnerPrice * tariffUsers;
+                        {view === 'b2b' && (
+                            <div>
+                                {Object.entries(activeTariffs).map(([k, t]) => {
+                                    const tariffUsers = users[k] || 0;
+                                    const tariffUtil = utils[k] || 0;
+                                    const partnerPrice = t.price * (tariffUtil / 100);
+                                    const totalPartnerPrice = partnerPrice * tariffUsers;
 
-                                if (selected[k]) {
-                                    grandB2BTotal += totalPartnerPrice;
-                                }
-                                
-                                return (
-                                    <div key={k} className={`border rounded-xl p-6 mb-4 transition ${selected[k] ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200'}`}>
-                                        <div className="flex items-center justify-between mb-4">
-                                            <label className="flex items-center gap-3 font-bold text-xl cursor-pointer">
-                                                <input type="checkbox" className="w-5 h-5" checked={selected[k]} onChange={() => setSelected({...selected, [k]: !selected[k]})}/> 
-                                                {t.name} — <span className="text-slate-500 text-base font-normal">Розница: {t.price} ₽</span>
+                                    if (selected[k]) {
+                                        grandB2BTotal += totalPartnerPrice;
+                                    }
+
+                                    return (
+                                        <div key={k} className={`border rounded-xl p-4 sm:p-6 mb-4 transition ${selected[k] ? 'border-blue-500 bg-blue-50/30' : 'border-slate-200'}`}>
+                                            <label className="flex items-start sm:items-center gap-3 font-bold text-base sm:text-xl cursor-pointer">
+                                                <input type="checkbox" className="w-5 h-5 mt-1 sm:mt-0 shrink-0" checked={selected[k]} onChange={() => toggleSelected(k)} />
+                                                <span>{t.name} — <span className="text-slate-500 text-sm sm:text-base font-normal">Розница: {t.price.toLocaleString('ru-RU')} ₽</span></span>
                                             </label>
+
+                                            {selected[k] && (
+                                                <div className="bg-white p-4 sm:p-5 rounded-lg shadow-inner border border-slate-100 mt-4 flex flex-col md:flex-row gap-4 sm:gap-6 justify-between md:items-center">
+                                                    <div className="flex flex-col sm:flex-row gap-4 w-full md:w-1/2">
+                                                        <div className="flex-1">
+                                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Лицензии</label>
+                                                            <input type="number" value={tariffUsers} onChange={(e) => handleUserChange(k, e.target.value)} className={simpleInputClass} />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Утилизация</label>
+                                                            <input type="number" value={tariffUtil} onChange={(e) => handleUtilChange(k, e.target.value)} className={simpleInputClass} />
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-left md:text-right w-full md:w-1/2">
+                                                        <div className="text-emerald-600 font-bold text-2xl sm:text-3xl break-words">
+                                                            {partnerPrice.toLocaleString('ru-RU')} ₽ <span className="text-sm text-slate-500 font-normal">/ 1 шт.</span>
+                                                        </div>
+                                                        <div className="text-xs font-bold text-slate-500 uppercase mt-1">
+                                                            Итого по тарифу: {totalPartnerPrice.toLocaleString('ru-RU')} ₽
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
+                                    );
+                                })}
 
-                                        {selected[k] && (
-                                            <div className="bg-white p-5 rounded-lg shadow-inner border border-slate-100 flex flex-col md:flex-row gap-6 justify-between items-center">
-                                                <div className="flex gap-4 w-full md:w-1/2">
-                                                    <div className="flex-1">
-                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Лицензии</label>
-                                                        <input type="number" value={tariffUsers} onChange={e => handleUserChange(k, e.target.value)} className="w-full p-2 border rounded-md outline-none focus:ring-2 focus:ring-blue-500"/>
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Утилизация (%)</label>
-                                                        <input type="number" value={tariffUtil} onChange={e => handleUtilChange(k, e.target.value)} className="w-full p-2 border rounded-md outline-none focus:ring-2 focus:ring-blue-500"/>
-                                                    </div>
-                                                </div>
+                                <div className="mt-6 sm:mt-8 bg-slate-800 text-white p-4 sm:p-6 rounded-xl shadow-lg">
+                                    <h2 className="text-lg sm:text-xl font-bold mb-2 uppercase text-slate-300">Сумма Итого (B2B Контракт)</h2>
+                                    <p className="text-slate-400 text-sm mb-4">Общая стоимость контракта для партнера с учетом индивидуальной утилизации тарифов</p>
+                                    <div className="text-3xl sm:text-4xl font-bold text-emerald-400 break-words">{grandB2BTotal.toLocaleString('ru-RU')} ₽</div>
+                                </div>
+                            </div>
+                        )}
 
-                                                <div className="text-right w-full md:w-1/2">
-                                                    <div className="text-emerald-600 font-bold text-3xl">
-                                                        {partnerPrice.toLocaleString()} ₽ <span className="text-sm text-slate-500 font-normal">/ 1 шт.</span>
-                                                    </div>
-                                                    <div className="text-xs font-bold text-slate-500 uppercase mt-1">
-                                                        Итого по тарифу: {totalPartnerPrice.toLocaleString()} ₽
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
+                        {view === 'info' && (
+                            <div>
+                                <p className="text-xs sm:text-sm text-slate-500 mb-4 sm:mb-6 leading-relaxed">
+                                    Цены и наполнение тарифов берутся из справочника расширенной версии.
+                                    {onSwitchToExtended && (
+                                        <>
+                                            {' '}
+                                            <button type="button" onClick={onSwitchToExtended} className="text-violet-700 font-medium underline hover:text-violet-900">
+                                                Открыть редактор тарифов
+                                            </button>
+                                        </>
+                                    )}
+                                </p>
+                            <div className="grid grid-cols-1 gap-4 sm:gap-6">
+                                {Object.entries(activeTariffs).map(([k, t]) => (
+                                    <div key={k} className="p-4 sm:p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b pb-4 mb-4">
+                                            <h3 className="font-bold text-blue-800 text-xl sm:text-2xl">{t.name}</h3>
+                                            <div className="text-2xl font-bold text-slate-800">{t.price.toLocaleString('ru-RU')} ₽</div>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Наполнение тарифа:</h4>
+                                            <ul className="space-y-3">
+                                                {t.features.map((feature, idx) => (
+                                                    <li key={idx} className="flex items-start gap-3">
+                                                        <span className="text-emerald-500 mt-0.5 shrink-0">✓</span>
+                                                        <span className="text-slate-700 leading-snug text-sm sm:text-base">{feature}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
                                     </div>
-                                );
-                            })}
+                                ))}
+                            </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
 
-                            <div className="mt-8 bg-slate-800 text-white p-6 rounded-xl shadow-lg">
-                                <h2 className="text-xl font-bold mb-2 uppercase text-slate-300">Сумма Итого (B2B Контракт)</h2>
-                                <p className="text-slate-400 text-sm mb-4">Общая стоимость контракта для партнера с учетом индивидуальной утилизации тарифов</p>
-                                <div className="text-4xl font-bold text-emerald-400">{grandB2BTotal.toLocaleString()} ₽</div>
+        function ExtendedCalculatorApp({
+            tariffs,
+            onUpdateTariff,
+            initialViewMode = 'annual'
+        }) {
+            const [viewMode, setViewMode] = useState(initialViewMode);
+            const [usersByTariff, setUsersByTariff] = useState({ base: 0, unlimited: 0, premium: 0 });
+            const [utilByTariff, setUtilByTariff] = useState({ base: 0, unlimited: 0, premium: 0 });
+
+            const [b2bTariff, setB2bTariff] = useState('base');
+            const [b2bUsers, setB2bUsers] = useState(0);
+            const [b2bUtil, setB2bUtil] = useState(0);
+
+            useEffect(() => {
+                setViewMode(initialViewMode);
+            }, [initialViewMode]);
+
+            const billingPeriod = viewMode === 'tariffs' ? 'annual' : viewMode;
+            const periodLabel = PERIOD_CALC_LABELS[billingPeriod];
+
+            const activeTariffs = useMemo(() => buildActiveTariffMap(tariffs, billingPeriod), [tariffs, billingPeriod]);
+
+            const totalUsers = TARIFF_KEYS.reduce((s, k) => s + (usersByTariff[k] || 0), 0);
+
+            const onTariffUsersChange = (key, count) => {
+                setUsersByTariff((prev) => ({ ...prev, [key]: Math.max(0, count) }));
+            };
+
+            const onTariffUtilChange = (key, util) => {
+                setUtilByTariff((prev) => ({ ...prev, [key]: Math.min(100, Math.max(0, util)) }));
+            };
+
+            const b2bTariffConfig = activeTariffs[b2bTariff];
+            const b2bPartnerPrice = calcPartnerPrice(b2bTariffConfig, b2bUtil);
+
+            // Расчет глобального дашборда
+            const globalData = useMemo(() => {
+                const sharePct = {};
+                TARIFF_KEYS.forEach((k) => {
+                    sharePct[k] = totalUsers > 0 ? (usersByTariff[k] / totalUsers) * 100 : 0;
+                });
+
+                const rows = TARIFF_KEYS.map((key) => {
+                    const tariff = activeTariffs[key];
+                    const users = usersByTariff[key] || 0;
+                    const utilization = utilByTariff[key] ?? 0;
+                    const metrics = calcTariffMetrics(tariff, users, utilization);
+                    return {
+                        key,
+                        name: tariffLabel(tariff),
+                        shortName: tariff.name,
+                        color: tariff.color,
+                        features: tariff.features,
+                        clientDescription: tariff.clientDescription,
+                        price: tariff.price,
+                        freeConsults: tariff.freeConsults || 0,
+                        consultCost: getTariffConsultCost(tariff),
+                        users,
+                        utilization,
+                        sharePct: sharePct[key],
+                        costBreakdown: formatCostFormula(tariff, utilization),
+                        ...metrics
+                    };
+                });
+
+                const totalRev = rows.reduce((s, r) => s + r.rev, 0);
+                const totalCost = rows.reduce((s, r) => s + r.cost, 0);
+
+                return {
+                    rows,
+                    sharePct,
+                    totalRev,
+                    totalCost,
+                    totalMargin: totalRev - totalCost,
+                    marginPct: totalRev > 0 ? ((totalRev - totalCost) / totalRev) * 100 : 0,
+                    periodLabel
+                };
+            }, [activeTariffs, usersByTariff, utilByTariff, totalUsers, periodLabel]);
+
+            // Расчет B2B сделки
+            const b2bMetrics = useMemo(() => {
+                const t = activeTariffs[b2bTariff];
+                const metrics = calcB2BDealMetrics(t, b2bUsers, b2bUtil);
+                const formula = formatB2BDealFormula(t, b2bUsers, b2bUtil);
+                return { ...metrics, formula, overagePenalty: t.price / 100 };
+            }, [activeTariffs, b2bTariff, b2bUsers, b2bUtil]);
+
+            return (
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl overflow-hidden border border-slate-200 mb-4 sm:mb-6">
+                        
+                        {/* Заголовок и Переключатель */}
+                        <div className="bg-slate-900 px-4 sm:px-6 py-4 sm:py-5 flex flex-col gap-4">
+                            <div className="min-w-0">
+                                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white tracking-tight leading-tight">Экономика платформы</h1>
+                                <p className="text-slate-400 text-xs sm:text-sm mt-1">Интерактивный расчет и B2B калькулятор</p>
+                            </div>
+                            
+                            <div className="grid grid-cols-3 gap-1 sm:flex sm:flex-wrap bg-slate-800 p-1 rounded-lg border border-slate-700 w-full sm:w-auto">
+                                <button
+                                    onClick={() => setViewMode('annual')}
+                                    className={`px-2 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-all text-center leading-tight ${viewMode === 'annual' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-300 hover:text-white'}`}
+                                >
+                                    <span className="sm:hidden">Год</span>
+                                    <span className="hidden sm:inline">Годовые тарифы</span>
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('monthly')}
+                                    className={`px-2 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-all text-center leading-tight ${viewMode === 'monthly' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-300 hover:text-white'}`}
+                                >
+                                    <span className="sm:hidden">Месяц</span>
+                                    <span className="hidden sm:inline">Ежемесячные тарифы</span>
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('tariffs')}
+                                    className={`px-2 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-all text-center leading-tight ${viewMode === 'tariffs' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-300 hover:text-white'}`}
+                                >
+                                    Тарифы
+                                </button>
                             </div>
                         </div>
-                    )}
 
-                    {/* Раздел: Информация о тарифах */}
-                    {view === 'info' && (
-                        <div className="grid grid-cols-1 gap-6">
-                            {Object.entries(activeTariffs).map(([k, t]) => (
-                                <div key={k} className="p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
-                                    <div className="flex justify-between items-center border-b pb-4 mb-4">
-                                        <h3 className="font-bold text-blue-800 text-2xl">{t.name}</h3>
-                                        <div className="text-right">
-                                            <div className="text-2xl font-bold text-slate-800">{t.price} ₽</div>
+                        {viewMode === 'tariffs' ? (
+                            <TariffsCatalogView
+                                tariffs={tariffs}
+                                onUpdateTariff={onUpdateTariff}
+                            />
+                        ) : (
+                        <>
+                        {/* Блок B2B Сделки */}
+                        <div className="bg-blue-50/50 border-b border-slate-200 p-4 sm:p-6">
+                            <h3 className="text-base sm:text-lg font-bold text-slate-800 mb-3 sm:mb-4 flex items-center gap-2">
+                                <span aria-hidden="true">🤝</span> B2B: Калькулятор партнерской сделки
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-500 mb-1">Тариф</label>
+                                    <select value={b2bTariff} onChange={e => setB2bTariff(e.target.value)} className={inputClass}>
+                                        {TARIFF_KEYS.map((k) => (
+                                            <option key={k} value={k}>{tariffLabel(activeTariffs[k])}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-500 mb-1">Кол-во лицензий</label>
+                                    <input type="number" value={b2bUsers} onChange={e => setB2bUsers(Number(e.target.value))} className={inputClass} />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-500 mb-1">Цена для партнера (₽)</label>
+                                    <input
+                                        type="number"
+                                        readOnly
+                                        value={Math.round(b2bPartnerPrice * 100) / 100}
+                                        className={`${inputClass} bg-slate-50 text-slate-700 cursor-default`}
+                                    />
+                                    <p className="text-[10px] text-slate-400 mt-1">{formatMoney(b2bTariffConfig.price)} × {b2bUtil}%</p>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-500 mb-1">Обещанная утилизация (%)</label>
+                                    <input type="number" min="0" max="100" value={b2bUtil} onChange={e => setB2bUtil(Math.min(100, Math.max(0, Number(e.target.value))))} className={inputClass} />
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 items-stretch sm:items-center bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
+                                <div className="flex-1 min-w-0 sm:min-w-[120px]">
+                                    <p className="text-xs text-slate-500 font-medium">Выручка сделки</p>
+                                    <p className="text-lg sm:text-xl font-bold text-blue-600 break-words">{formatMoney(b2bMetrics.rev)}</p>
+                                </div>
+                                <div className="flex-1 min-w-0 sm:min-w-[120px]">
+                                    <p className="text-xs text-slate-500 font-medium">Затраты сделки</p>
+                                    <p className="text-lg sm:text-xl font-bold text-red-600 break-words">{formatMoney(b2bMetrics.cost)}</p>
+                                </div>
+                                <div className="flex-1 min-w-0 sm:min-w-[120px]">
+                                    <p className="text-xs text-slate-500 font-medium">Маржа сделки</p>
+                                    <p className={`text-lg sm:text-xl font-bold break-words ${b2bMetrics.margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {formatMoney(b2bMetrics.margin)} ({b2bMetrics.marginPct.toFixed(1)}%)
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="mt-3 rounded-lg border border-blue-100 bg-white/80 p-3 text-xs text-slate-600 space-y-1 leading-relaxed">
+                                <p className="font-semibold text-slate-700 mb-1">Как считается B2B</p>
+                                <p>{b2bMetrics.formula.revenueLine}</p>
+                                <p>{b2bMetrics.formula.costLine}</p>
+                                <p>{b2bMetrics.formula.marginLine}</p>
+                                <p className="text-[10px] text-slate-400 pt-1">Скидка партнёру = розничная цена × утилизация. Затраты — только на фактически использованные лицензии ({b2bUtil}% от {formatNumber(b2bUsers)}).</p>
+                            </div>
+                        </div>
+
+                        {/* Розница */}
+                        <div className="p-4 sm:p-6 border-t border-slate-100">
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4 sm:mb-6">
+                                <div className="min-w-0">
+                                    <h3 className="text-base sm:text-lg font-bold text-slate-800">Розница</h3>
+                                    <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-xl leading-relaxed">
+                                        Сколько заработает платформа при прямых продажах клиентам по полной цене.
+                                    </p>
+                                </div>
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 shrink-0">
+                                    Показатели {globalData.periodLabel}
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                                {/* Левая колонка: параметры */}
+                                <div className="lg:col-span-1 space-y-5">
+                                    <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-sm text-slate-600 space-y-2">
+                                        <p className="font-semibold text-slate-800">Как считается</p>
+                                        <p><span className="font-medium text-blue-700">Выручка</span> = пользователи × розничная цена</p>
+                                        <p><span className="font-medium text-red-600">Затраты</span> = клиенты × утилизация × (себест. ИИ + устные консультации по тарифу)</p>
+                                        <p><span className="font-medium text-emerald-700">Маржа</span> = выручка − затраты</p>
+                                    </div>
+
+                                    <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3 text-xs text-amber-900">
+                                        <p className="font-semibold mb-1">Тарифы и цены</p>
+                                        <p>Редактируются во вкладке <button type="button" onClick={() => setViewMode('tariffs')} className="underline font-medium text-emerald-700">Тарифы</button>. Текущий период: <strong>{PERIOD_LABELS[billingPeriod]}</strong></p>
+                                    </div>
+
+                                    <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+                                        <p className="text-sm font-semibold text-slate-800">Тарифы в расчёте ({periodLabel})</p>
+                                        <p className="text-xs text-slate-400">Все показатели розницы считаются только по параметрам ниже.</p>
+                                        {TARIFF_KEYS.map((k) => (
+                                            <TariffEconomicsEditor
+                                                key={k}
+                                                tariff={activeTariffs[k]}
+                                                period={billingPeriod}
+                                                tariffKey={k}
+                                                periodLabel={periodLabel}
+                                                onUpdateTariff={onUpdateTariff}
+                                                users={usersByTariff[k]}
+                                                utilization={utilByTariff[k]}
+                                                onUsersChange={(n) => onTariffUsersChange(k, n)}
+                                                onUtilChange={(u) => onTariffUtilChange(k, u)}
+                                            />
+                                        ))}
+                                        <div className="pt-3 border-t border-slate-100">
+                                            <p className="text-xs text-slate-500 mb-2">Структура базы ({formatNumber(totalUsers)} чел.)</p>
+                                            <div className="flex h-4 rounded-full overflow-hidden border border-slate-200">
+                                                {globalData.rows.map((row) => (
+                                                    row.sharePct > 0 && (
+                                                        <div
+                                                            key={row.key}
+                                                            className="h-full transition-all"
+                                                            style={{ width: `${row.sharePct}%`, backgroundColor: row.color }}
+                                                            title={`${row.shortName}: ${row.sharePct.toFixed(1)}%`}
+                                                        />
+                                                    )
+                                                ))}
+                                            </div>
+                                            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                                                {globalData.rows.map((row) => (
+                                                    <span key={row.key} className="text-[10px] text-slate-500 flex items-center gap-1">
+                                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: row.color }}></span>
+                                                        {row.shortName}: {formatNumber(row.users)} ({row.sharePct.toFixed(0)}%)
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
-                                    
+                                </div>
+
+                                {/* Правая колонка: результаты */}
+                                <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+                                    <div className="grid grid-cols-1 xs:grid-cols-3 gap-3 sm:gap-4">
+                                        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 sm:p-4">
+                                            <p className="text-xs sm:text-sm text-blue-600">Выручка {globalData.periodLabel}</p>
+                                            <p className="text-xl sm:text-2xl font-bold text-slate-900 break-words">{formatMoney(globalData.totalRev)}</p>
+                                            <p className="text-[10px] sm:text-xs text-slate-400 mt-1">Клиенты платят полную розничную цену</p>
+                                        </div>
+                                        <div className="bg-red-50 border border-red-100 rounded-xl p-3 sm:p-4">
+                                            <p className="text-xs sm:text-sm text-red-600">Затраты {globalData.periodLabel}</p>
+                                            <p className="text-xl sm:text-2xl font-bold text-slate-900 break-words">{formatMoney(globalData.totalCost)}</p>
+                                            <p className="text-[10px] sm:text-xs text-slate-400 mt-1">Ставки услуг фиксированы; утилизация масштабирует итог затрат</p>
+                                        </div>
+                                        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 sm:p-4">
+                                            <p className="text-xs sm:text-sm text-emerald-600">Маржа {globalData.periodLabel}</p>
+                                            <p className="text-xl sm:text-2xl font-bold text-slate-900 break-words">{formatMoney(globalData.totalMargin)}</p>
+                                            <p className="text-[10px] sm:text-xs text-emerald-700 mt-1 font-medium">Рентабельность {globalData.marginPct.toFixed(1)}%</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Карточки-формулы по тарифам */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        {globalData.rows.map((row) => (
+                                            <div key={row.key} className="rounded-xl border border-slate-200 p-3 bg-white text-xs flex flex-col">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: row.color }}></span>
+                                                    <span className="font-semibold text-slate-800 truncate">{row.shortName}</span>
+                                                </div>
+                                                <p className="text-xs text-slate-500 leading-relaxed mb-1">{row.clientDescription}</p>
+                                                <div className="mt-2 pt-2 border-t border-slate-100 flex-grow">
+                                                    <p className="text-slate-500 mb-1">{formatNumber(row.users)} × {formatMoney(row.price)}</p>
+                                                    <p className="font-semibold text-blue-600">= {formatMoney(row.rev)} выручка</p>
+                                                    <p className="text-slate-400 mt-2">{row.costBreakdown}</p>
+                                                    <p className="font-semibold text-red-500 mt-0.5">= {formatMoney(row.cost)} затраты ({formatNumber(row.users)} лиц.)</p>
+                                                    <p className="font-semibold text-emerald-600 mt-1">Маржа {formatMoney(row.margin)}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
                                     <div>
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Наполнение тарифа:</h4>
-                                        <ul className="space-y-3">
-                                            {t.features.map((feature, idx) => (
-                                                <li key={idx} className="flex items-start gap-3">
-                                                    <span className="text-emerald-500 mt-0.5">✓</span>
-                                                    <span className="text-slate-700 leading-snug">{feature}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
+                                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 sm:mb-3">Маржа по тарифам</p>
+                                        <div className="h-48 sm:h-56 w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={globalData.rows} margin={{ top: 8, right: 4, left: 0, bottom: 4 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                                    <XAxis dataKey="shortName" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={50} />
+                                                    <YAxis tickFormatter={(val) => `${val / 1000}k`} tick={{ fontSize: 10 }} width={36} />
+                                                    <Tooltip formatter={(value) => formatMoney(value)} labelFormatter={(label, payload) => payload?.[0]?.payload?.name || label} />
+                                                    <Bar dataKey="margin" name="Маржа" radius={[4, 4, 0, 0]}>
+                                                        {globalData.rows.map((entry) => (
+                                                            <Cell key={entry.key} fill={entry.color} />
+                                                        ))}
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+
+                                    <p className="table-scroll-hint text-xs text-slate-400 mb-2">← Прокрутите таблицу →</p>
+                                    <div className="overflow-x-auto border border-slate-200 rounded-xl -mx-1 px-1 sm:mx-0 sm:px-0">
+                                        <table className="w-full text-xs sm:text-sm text-left min-w-[680px]">
+                                            <thead className="bg-slate-50 text-slate-500 font-medium">
+                                                <tr>
+                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b">Тариф</th>
+                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right">Доля</th>
+                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right">Польз.</th>
+                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right">Цена</th>
+                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right whitespace-nowrap">Себест.</th>
+                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right">Выручка</th>
+                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right">Затраты</th>
+                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right">Маржа</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {globalData.rows.map((row) => (
+                                                    <tr key={row.key} className="hover:bg-slate-50">
+                                                        <td className="px-2 sm:px-4 py-2 sm:py-3">
+                                                            <div className="flex items-center gap-2 font-medium text-slate-800">
+                                                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: row.color }}></span>
+                                                                <span>{row.shortName}</span>
+                                                            </div>
+                                                            <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">{row.clientDescription}</p>
+                                                            <p className="text-[10px] text-slate-500 mt-1 pl-4 font-medium">{row.costBreakdown}</p>
+                                                        </td>
+                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-slate-500">{row.sharePct.toFixed(1)}%</td>
+                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums">{formatNumber(row.users)}</td>
+                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums whitespace-nowrap">{formatMoney(row.price)}</td>
+                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-slate-500 whitespace-nowrap">{formatMoney(row.unitCost)}</td>
+                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-blue-600 whitespace-nowrap">{formatMoney(row.rev)}</td>
+                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-red-600 whitespace-nowrap">{formatMoney(row.cost)}</td>
+                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums font-semibold text-emerald-600 whitespace-nowrap">{formatMoney(row.margin)}</td>
+                                                    </tr>
+                                                ))}
+                                                <tr className="bg-slate-50 font-semibold">
+                                                    <td className="px-2 sm:px-4 py-2 sm:py-3" colSpan="5">Итого ({globalData.periodLabel})</td>
+                                                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-blue-600">{formatMoney(globalData.totalRev)}</td>
+                                                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-red-600">{formatMoney(globalData.totalCost)}</td>
+                                                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-emerald-600">{formatMoney(globalData.totalMargin)}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
-                            ))}
+                            </div>
                         </div>
+                        </>
+                        )}
+
+                    </div>
+            );
+        }
+
+        function App() {
+            const [calcVersion, setCalcVersion] = useState(loadCalcVersion);
+            const [extendedViewMode, setExtendedViewMode] = useState('annual');
+            const [tariffs, setTariffs] = useState(loadInitialTariffs);
+
+            const handleCalcVersionChange = (version) => {
+                setCalcVersion(version);
+                persistCalcVersion(version);
+                if (version === 'extended') {
+                    setExtendedViewMode('annual');
+                }
+            };
+
+            const handleOpenTariffEditor = () => {
+                setExtendedViewMode('tariffs');
+                setCalcVersion('extended');
+                persistCalcVersion('extended');
+            };
+
+            const handleUpdateTariff = (period, key, field, raw) => {
+                updateTariffInCatalog(setTariffs, period, key, field, raw);
+            };
+
+            const sharedTariffProps = {
+                tariffs,
+                onUpdateTariff: handleUpdateTariff
+            };
+
+            return (
+                <div className="w-full max-w-8xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-6 lg:py-8">
+                    <CalculatorVersionPicker version={calcVersion} onChange={handleCalcVersionChange} />
+                    {calcVersion === 'extended' ? (
+                        <ExtendedCalculatorApp {...sharedTariffProps} initialViewMode={extendedViewMode} />
+                    ) : (
+                        <SimpleCalculatorApp
+                            tariffs={tariffs}
+                            onSwitchToExtended={handleOpenTariffEditor}
+                        />
                     )}
                 </div>
             );
         }
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
