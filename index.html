@@ -86,6 +86,8 @@
         @media (min-width: 640px) {
             input[type="number"], input[type="text"], select, textarea { font-size: inherit; }
         }
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
     </style>
 </head>
 <body>
@@ -245,6 +247,7 @@
 
         const inputClass = 'w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-slate-200 rounded-lg bg-white text-slate-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 min-h-[44px] sm:min-h-0';
         const inputSmClass = 'w-full sm:w-24 px-2 py-2 sm:py-1.5 text-base sm:text-sm border border-slate-200 rounded-lg bg-white text-slate-800 tabular-nums text-right focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 min-h-[44px] sm:min-h-0';
+        const inputCatalogClass = 'w-full px-2 py-1.5 text-base sm:text-sm border border-slate-200 rounded-md bg-white text-slate-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400';
 
         function SliderWithInput({ label, value, min, max, step, suffix, hint, onChange }) {
             const clamp = (v) => Math.min(max, Math.max(min, v));
@@ -371,97 +374,156 @@
             );
         }
 
-        function TariffsCatalogView({ tariffs, onUpdateTariff }) {
-            const rows = PERIODS.flatMap((period) =>
-                TARIFF_KEYS.map((key) => ({ period, key, tariff: tariffs[period][key] }))
-            );
+        function TariffCatalogRow({ period, tariffKey, tariff, onUpdateTariff, compact }) {
+            const descPreview = (tariff.clientDescription || '').trim();
+            const descShort = descPreview.length > 72 ? `${descPreview.slice(0, 72)}…` : descPreview;
+
+            if (compact) {
+                return (
+                    <div className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5">
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: tariff.color }}></span>
+                            <span className="text-sm font-semibold text-slate-800 truncate">{tariff.name}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+                            <label className="col-span-1">
+                                <span className="block text-[10px] text-slate-500 mb-0.5">Цена</span>
+                                <input type="number" min="0" step="10" value={tariff.price} onChange={(e) => onUpdateTariff(period, tariffKey, 'price', e.target.value)} className={inputCatalogClass} />
+                            </label>
+                            <label className="col-span-1">
+                                <span className="block text-[10px] text-slate-500 mb-0.5">Себест. ИИ</span>
+                                <input type="number" min="0" step="5" value={tariff.fixedCost} onChange={(e) => onUpdateTariff(period, tariffKey, 'fixedCost', e.target.value)} className={inputCatalogClass} />
+                            </label>
+                            <label className="col-span-1">
+                                <span className="block text-[10px] text-slate-500 mb-0.5">Устн. конс.</span>
+                                <input type="number" min="0" step="1" value={tariff.freeConsults} onChange={(e) => onUpdateTariff(period, tariffKey, 'freeConsults', e.target.value)} className={inputCatalogClass} />
+                            </label>
+                            <label className="col-span-1">
+                                <span className="block text-[10px] text-slate-500 mb-0.5">₽ / конс.</span>
+                                <input type="number" min="0" step="50" value={tariff.consultCost ?? DEFAULT_ORAL_CONSULT_COST} onChange={(e) => onUpdateTariff(period, tariffKey, 'consultCost', e.target.value)} className={inputCatalogClass} />
+                            </label>
+                        </div>
+                        {descPreview && (
+                            <details className="mt-2 group">
+                                <summary className="text-[10px] text-slate-500 cursor-pointer list-none flex items-center gap-1 select-none">
+                                    <span className="text-slate-400 group-open:rotate-90 transition-transform inline-block">›</span>
+                                    <span className="truncate">{descShort || 'Описание'}</span>
+                                </summary>
+                                <textarea
+                                    rows={2}
+                                    value={tariff.clientDescription}
+                                    onChange={(e) => onUpdateTariff(period, tariffKey, 'clientDescription', e.target.value)}
+                                    className="w-full mt-1.5 text-xs border border-slate-200 rounded-md p-2 text-slate-600 resize-y min-h-[52px]"
+                                />
+                            </details>
+                        )}
+                        {!descPreview && (
+                            <details className="mt-2">
+                                <summary className="text-[10px] text-slate-400 cursor-pointer">+ Описание для клиента</summary>
+                                <textarea
+                                    rows={2}
+                                    value={tariff.clientDescription}
+                                    onChange={(e) => onUpdateTariff(period, tariffKey, 'clientDescription', e.target.value)}
+                                    className="w-full mt-1.5 text-xs border border-slate-200 rounded-md p-2 text-slate-600 resize-y min-h-[52px]"
+                                />
+                            </details>
+                        )}
+                    </div>
+                );
+            }
 
             return (
-                <div className="p-4 sm:p-6 border-t border-slate-100">
-                    <div className="mb-4 sm:mb-6">
-                        <h3 className="text-base sm:text-lg font-bold text-slate-800">Справочник тарифов</h3>
-                        <p className="text-xs sm:text-sm text-slate-500 mt-1">Все изменения здесь сразу применяются в B2B-калькуляторе и блоке «Розница».</p>
+                <tr className="hover:bg-slate-50 align-top border-b border-slate-100 last:border-0">
+                    <td className="px-2 sm:px-3 py-2">
+                        <div className="flex items-center gap-1.5 font-medium text-slate-800 text-xs sm:text-sm whitespace-nowrap">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: tariff.color }}></span>
+                            {tariff.name}
+                        </div>
+                    </td>
+                    <td className="px-2 sm:px-3 py-2 text-right">
+                        <input type="number" min="0" step="10" value={tariff.price} onChange={(e) => onUpdateTariff(period, tariffKey, 'price', e.target.value)} className={`${inputCatalogClass} sm:w-20 text-right`} />
+                    </td>
+                    <td className="px-2 sm:px-3 py-2 max-w-[180px] lg:max-w-xs">
+                        <textarea rows={2} value={tariff.clientDescription} onChange={(e) => onUpdateTariff(period, tariffKey, 'clientDescription', e.target.value)} className="w-full text-xs border border-slate-200 rounded-md p-1.5 text-slate-600 resize-y min-h-[48px] leading-snug" />
+                    </td>
+                    <td className="px-2 sm:px-3 py-2 text-right">
+                        <input type="number" min="0" step="5" value={tariff.fixedCost} onChange={(e) => onUpdateTariff(period, tariffKey, 'fixedCost', e.target.value)} className={`${inputCatalogClass} sm:w-16 text-right`} />
+                    </td>
+                    <td className="px-2 sm:px-3 py-2 text-right">
+                        <div className="inline-flex items-center gap-1">
+                            <input type="number" min="0" step="1" value={tariff.freeConsults} onChange={(e) => onUpdateTariff(period, tariffKey, 'freeConsults', e.target.value)} className={`${inputCatalogClass} w-12 text-right`} title="Кол-во" />
+                            <span className="text-slate-300">×</span>
+                            <input type="number" min="0" step="50" value={tariff.consultCost ?? DEFAULT_ORAL_CONSULT_COST} onChange={(e) => onUpdateTariff(period, tariffKey, 'consultCost', e.target.value)} className={`${inputCatalogClass} w-14 text-right`} title="₽ / шт." />
+                        </div>
+                    </td>
+                </tr>
+            );
+        }
+
+        function TariffsCatalogView({ tariffs, onUpdateTariff }) {
+            return (
+                <div className="p-3 sm:p-5 border-t border-slate-100">
+                    <div className="mb-3 sm:mb-4">
+                        <h3 className="text-sm sm:text-base font-bold text-slate-800">Справочник тарифов</h3>
+                        <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">Изменения сразу применяются в B2B и «Розница».</p>
                     </div>
 
-                    <p className="table-scroll-hint text-xs text-slate-400 mb-2 sm:mb-2 hidden sm:block">← Прокрутите таблицу влево-вправо →</p>
-
-                    {/* Мобильные карточки */}
+                    {/* Мобильный вид: по периодам, компактные блоки */}
                     <div className="sm:hidden space-y-4">
-                        {rows.map(({ period, key, tariff }) => (
-                            <div key={`${period}-${key}-m`} className="rounded-xl border border-slate-200 p-4 bg-white shadow-sm">
-                                <div className="flex items-start gap-2 mb-3">
-                                    <span className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ backgroundColor: tariff.color }}></span>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="font-semibold text-slate-800 leading-tight">{tariff.name}</p>
-                                        <p className="text-xs text-slate-500 mt-0.5">{PERIOD_LABELS[period]}</p>
-                                    </div>
+                        {PERIODS.map((period) => (
+                            <section key={period}>
+                                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 px-0.5">{PERIOD_LABELS[period]}</h4>
+                                <div className="space-y-2">
+                                    {TARIFF_KEYS.map((key) => (
+                                        <TariffCatalogRow
+                                            key={`${period}-${key}`}
+                                            period={period}
+                                            tariffKey={key}
+                                            tariff={tariffs[period][key]}
+                                            onUpdateTariff={onUpdateTariff}
+                                            compact
+                                        />
+                                    ))}
                                 </div>
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-500 mb-1">Цена (₽)</label>
-                                        <input type="number" min="0" step="10" value={tariff.price} onChange={(e) => onUpdateTariff(period, key, 'price', e.target.value)} className={inputClass} />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-500 mb-1">Для клиента</label>
-                                        <textarea rows={3} value={tariff.clientDescription} onChange={(e) => onUpdateTariff(period, key, 'clientDescription', e.target.value)} className="w-full text-sm border border-slate-200 rounded-lg p-2.5 text-slate-600 resize-y min-h-[80px]" />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Себест. ИИ (₽)</label>
-                                            <input type="number" min="0" step="5" value={tariff.fixedCost} onChange={(e) => onUpdateTariff(period, key, 'fixedCost', e.target.value)} className={inputClass} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-500 mb-1">Устн. конс. (шт.)</label>
-                                            <input type="number" min="0" step="1" value={tariff.freeConsults} onChange={(e) => onUpdateTariff(period, key, 'freeConsults', e.target.value)} className={inputClass} />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-500 mb-1">Себест. 1 консультации (₽)</label>
-                                        <input type="number" min="0" step="50" value={tariff.consultCost ?? DEFAULT_ORAL_CONSULT_COST} onChange={(e) => onUpdateTariff(period, key, 'consultCost', e.target.value)} className={inputClass} />
-                                    </div>
-                                </div>
-                            </div>
+                            </section>
                         ))}
                     </div>
 
-                    <div className="hidden sm:block touch-scroll border border-slate-200 rounded-xl shadow-sm">
-                        <table className="w-full text-xs sm:text-sm text-left min-w-[1000px]">
-                            <thead className="bg-slate-800 text-slate-200 text-[10px] sm:text-xs uppercase tracking-wider">
+                    {/* Десктоп: таблица по периодам */}
+                    <p className="table-scroll-hint text-[11px] text-slate-400 mb-1.5 hidden sm:block">← Прокрутите при необходимости →</p>
+                    <div className="hidden sm:block touch-scroll border border-slate-200 rounded-lg shadow-sm">
+                        <table className="w-full text-xs text-left min-w-[720px]">
+                            <thead className="bg-slate-800 text-slate-200 text-[10px] uppercase tracking-wider">
                                 <tr>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3">Тариф</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3">Период</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-right">Цена</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3">Для клиента</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-right">Себест. ИИ</th>
-                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-right">Устн. конс.</th>
+                                    <th className="px-2 sm:px-3 py-2">Тариф</th>
+                                    <th className="px-2 sm:px-3 py-2 text-right">Цена</th>
+                                    <th className="px-2 sm:px-3 py-2">Для клиента</th>
+                                    <th className="px-2 sm:px-3 py-2 text-right">Себест. ИИ</th>
+                                    <th className="px-2 sm:px-3 py-2 text-right whitespace-nowrap">Устн. конс.</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {rows.map(({ period, key, tariff }) => (
-                                    <tr key={`${period}-${key}`} className="hover:bg-slate-50 align-top">
-                                        <td className="px-2 sm:px-4 py-3 sm:py-4">
-                                            <div className="flex items-center gap-2 font-semibold text-slate-800">
-                                                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: tariff.color }}></span>
-                                                {tariff.name}
-                                            </div>
-                                        </td>
-                                        <td className="px-2 sm:px-4 py-3 sm:py-4 text-slate-600 whitespace-nowrap">{PERIOD_LABELS[period]}</td>
-                                        <td className="px-2 sm:px-4 py-3 sm:py-4 text-right">
-                                            <input type="number" min="0" step="10" value={tariff.price} onChange={(e) => onUpdateTariff(period, key, 'price', e.target.value)} className={`${inputSmClass} sm:w-24`} />
-                                        </td>
-                                        <td className="px-2 sm:px-4 py-3 sm:py-4 max-w-[200px] sm:max-w-xs">
-                                            <textarea rows={3} value={tariff.clientDescription} onChange={(e) => onUpdateTariff(period, key, 'clientDescription', e.target.value)} className="w-full text-xs border border-slate-200 rounded-lg p-2 text-slate-600 resize-y min-h-[72px]" />
-                                        </td>
-                                        <td className="px-2 sm:px-4 py-3 sm:py-4 text-right">
-                                            <input type="number" min="0" step="5" value={tariff.fixedCost} onChange={(e) => onUpdateTariff(period, key, 'fixedCost', e.target.value)} className={`${inputSmClass} sm:w-20`} />
-                                        </td>
-                                        <td className="px-2 sm:px-4 py-3 sm:py-4 text-right">
-                                            <label className="block text-[10px] text-slate-400 mb-1">Кол-во</label>
-                                            <input type="number" min="0" step="1" value={tariff.freeConsults} onChange={(e) => onUpdateTariff(period, key, 'freeConsults', e.target.value)} className={`${inputSmClass} sm:w-16`} />
-                                            <label className="block text-[10px] text-slate-400 mb-1 mt-2">₽ / шт.</label>
-                                            <input type="number" min="0" step="50" value={tariff.consultCost ?? DEFAULT_ORAL_CONSULT_COST} onChange={(e) => onUpdateTariff(period, key, 'consultCost', e.target.value)} className={`${inputSmClass} sm:w-20`} />
-                                        </td>
-                                    </tr>
+                            <tbody>
+                                {PERIODS.map((period, pi) => (
+                                    <React.Fragment key={period}>
+                                        <tr className="bg-slate-100/80">
+                                            <td colSpan="5" className="px-2 sm:px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                                                {PERIOD_LABELS[period]}
+                                            </td>
+                                        </tr>
+                                        {TARIFF_KEYS.map((key) => (
+                                            <TariffCatalogRow
+                                                key={`${period}-${key}`}
+                                                period={period}
+                                                tariffKey={key}
+                                                tariff={tariffs[period][key]}
+                                                onUpdateTariff={onUpdateTariff}
+                                                compact={false}
+                                            />
+                                        ))}
+                                        {pi < PERIODS.length - 1 && (
+                                            <tr><td colSpan="5" className="h-1 bg-white border-none p-0"></td></tr>
+                                        )}
+                                    </React.Fragment>
                                 ))}
                             </tbody>
                         </table>
@@ -1223,71 +1285,3 @@
                                                         <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-red-600 whitespace-nowrap">{formatMoney(row.cost)}</td>
                                                         <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums font-semibold text-emerald-600 whitespace-nowrap">{formatMoney(row.margin)}</td>
                                                     </tr>
-                                                ))}
-                                                <tr className="bg-slate-50 font-semibold">
-                                                    <td className="px-2 sm:px-4 py-2 sm:py-3" colSpan="5">Итого ({globalData.periodLabel})</td>
-                                                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-blue-600">{formatMoney(globalData.totalRev)}</td>
-                                                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-red-600">{formatMoney(globalData.totalCost)}</td>
-                                                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-emerald-600">{formatMoney(globalData.totalMargin)}</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        </>
-                        )}
-
-                    </div>
-            );
-        }
-
-        function App() {
-            const [calcVersion, setCalcVersion] = useState(loadCalcVersion);
-            const [extendedViewMode, setExtendedViewMode] = useState('annual');
-            const [tariffs, setTariffs] = useState(loadInitialTariffs);
-
-            const handleCalcVersionChange = (version) => {
-                setCalcVersion(version);
-                persistCalcVersion(version);
-                if (version === 'extended') {
-                    setExtendedViewMode('annual');
-                }
-            };
-
-            const handleOpenTariffEditor = () => {
-                setExtendedViewMode('tariffs');
-                setCalcVersion('extended');
-                persistCalcVersion('extended');
-            };
-
-            const handleUpdateTariff = (period, key, field, raw) => {
-                updateTariffInCatalog(setTariffs, period, key, field, raw);
-            };
-
-            const sharedTariffProps = {
-                tariffs,
-                onUpdateTariff: handleUpdateTariff
-            };
-
-            return (
-                <div className="w-full max-w-8xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-6 lg:py-8 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-                    <CalculatorVersionPicker version={calcVersion} onChange={handleCalcVersionChange} />
-                    {calcVersion === 'extended' ? (
-                        <ExtendedCalculatorApp {...sharedTariffProps} initialViewMode={extendedViewMode} />
-                    ) : (
-                        <SimpleCalculatorApp
-                            tariffs={tariffs}
-                            onSwitchToExtended={handleOpenTariffEditor}
-                        />
-                    )}
-                </div>
-            );
-        }
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
