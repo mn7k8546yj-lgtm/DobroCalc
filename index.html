@@ -21,11 +21,6 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     
-    <script src="https://unpkg.com/react-is@18.2.0/umd/react-is.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
-    
-    <script src="https://unpkg.com/recharts@2.1.12/umd/Recharts.js"></script>
-    
     <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
 
     <style>
@@ -95,7 +90,6 @@
 
     <script type="text/babel" data-type="module">
         const { useState, useMemo, useEffect } = React;
-        const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } = window.Recharts;
 
         const TARIFF_KEYS = ['base', 'unlimited', 'premium'];
         const PERIODS = ['annual', 'monthly'];
@@ -1061,240 +1055,169 @@
                         <>
                         {/* Блок B2B Сделки */}
                         <div className="bg-blue-50/50 border-b border-slate-200 p-4 sm:p-6">
-                            <h3 className="text-base sm:text-lg font-bold text-slate-800 mb-3 sm:mb-4 flex items-center gap-2 leading-tight">
+                            <h3 className="text-base sm:text-lg font-bold text-slate-800 mb-3 flex items-center gap-2 leading-tight">
                                 <span aria-hidden="true">🤝</span>
                                 <span className="sm:hidden">B2B: партнёрская сделка</span>
                                 <span className="hidden sm:inline">B2B: Калькулятор партнерской сделки</span>
                             </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">Тариф</label>
-                                    <select value={b2bTariff} onChange={e => setB2bTariff(e.target.value)} className={inputClass}>
-                                        {TARIFF_KEYS.map((k) => (
-                                            <option key={k} value={k}>{tariffLabel(activeTariffs[k])}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">Кол-во лицензий</label>
-                                    <input type="number" value={b2bUsers} onChange={e => setB2bUsers(Number(e.target.value))} className={inputClass} />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">Цена для партнера (₽)</label>
-                                    <input
-                                        type="number"
-                                        readOnly
-                                        value={Math.round(b2bPartnerPrice * 100) / 100}
-                                        className={`${inputClass} bg-slate-50 text-slate-700 cursor-default`}
-                                    />
-                                    <p className="text-[10px] text-slate-400 mt-1">{formatMoney(b2bTariffConfig.price)} × {b2bUtil}%</p>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">Обещанная утилизация (%)</label>
-                                    <input type="number" min="0" max="100" value={b2bUtil} onChange={e => setB2bUtil(Math.min(100, Math.max(0, Number(e.target.value))))} className={inputClass} />
-                                </div>
-                            </div>
 
-                            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 items-stretch sm:items-center bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
-                                <div className="flex-1 min-w-0 sm:min-w-[120px]">
-                                    <p className="text-xs text-slate-500 font-medium">Выручка сделки</p>
-                                    <p className="text-lg sm:text-xl font-bold text-blue-600 break-words">{formatMoney(b2bMetrics.rev)}</p>
+                            <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+                                <div className="xl:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Тариф</label>
+                                        <select value={b2bTariff} onChange={e => setB2bTariff(e.target.value)} className={inputClass}>
+                                            {TARIFF_KEYS.map((k) => (
+                                                <option key={k} value={k}>{tariffLabel(activeTariffs[k])}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Лицензий</label>
+                                        <input type="number" value={b2bUsers} onChange={e => setB2bUsers(Number(e.target.value))} className={inputClass} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Утилизация (%)</label>
+                                        <input type="number" min="0" max="100" value={b2bUtil} onChange={e => setB2bUtil(Math.min(100, Math.max(0, Number(e.target.value))))} className={inputClass} />
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">Цена для партнёра (₽)</label>
+                                        <input
+                                            type="number"
+                                            readOnly
+                                            value={Math.round(b2bPartnerPrice * 100) / 100}
+                                            className={`${inputClass} bg-white text-slate-700 cursor-default`}
+                                        />
+                                        <p className="text-[10px] text-slate-400 mt-1">{formatMoney(b2bTariffConfig.price)} × {b2bUtil}%</p>
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-w-0 sm:min-w-[120px]">
-                                    <p className="text-xs text-slate-500 font-medium">Затраты сделки</p>
-                                    <p className="text-lg sm:text-xl font-bold text-red-600 break-words">{formatMoney(b2bMetrics.cost)}</p>
+
+                                <div className="xl:col-span-3 flex flex-col gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div className="bg-white rounded-xl border border-slate-200 p-3">
+                                            <p className="text-xs text-slate-500">Выручка</p>
+                                            <p className="text-lg font-bold text-blue-600 break-words">{formatMoney(b2bMetrics.rev)}</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl border border-slate-200 p-3">
+                                            <p className="text-xs text-slate-500">Затраты</p>
+                                            <p className="text-lg font-bold text-red-600 break-words">{formatMoney(b2bMetrics.cost)}</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl border border-slate-200 p-3">
+                                            <p className="text-xs text-slate-500">Маржа</p>
+                                            <p className={`text-lg font-bold break-words ${b2bMetrics.margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                {formatMoney(b2bMetrics.margin)} <span className="text-sm font-semibold">({b2bMetrics.marginPct.toFixed(1)}%)</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="rounded-lg border border-blue-100 bg-white/90 p-3 text-xs text-slate-600 space-y-1 leading-relaxed flex-1">
+                                        <p className="font-semibold text-slate-700">Как считается B2B</p>
+                                        <p className="break-words">{b2bMetrics.formula.revenueLine}</p>
+                                        <p className="break-words">{b2bMetrics.formula.costLine}</p>
+                                        <p className="break-words">{b2bMetrics.formula.marginLine}</p>
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-w-0 sm:min-w-[120px]">
-                                    <p className="text-xs text-slate-500 font-medium">Маржа сделки</p>
-                                    <p className={`text-lg sm:text-xl font-bold break-words ${b2bMetrics.margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                        {formatMoney(b2bMetrics.margin)} ({b2bMetrics.marginPct.toFixed(1)}%)
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="mt-3 rounded-lg border border-blue-100 bg-white/80 p-3 text-xs text-slate-600 space-y-1.5 leading-relaxed">
-                                <p className="font-semibold text-slate-700 mb-1">Как считается B2B</p>
-                                <p className="break-words">{b2bMetrics.formula.revenueLine}</p>
-                                <p className="break-words">{b2bMetrics.formula.costLine}</p>
-                                <p className="break-words">{b2bMetrics.formula.marginLine}</p>
-                                <p className="text-[10px] text-slate-400 pt-1">Скидка партнёру = розничная цена × утилизация. Затраты — только на фактически использованные лицензии ({b2bUtil}% от {formatNumber(b2bUsers)}).</p>
                             </div>
                         </div>
 
                         {/* Розница */}
                         <div className="p-4 sm:p-6 border-t border-slate-100">
-                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4 sm:mb-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
                                 <div className="min-w-0">
                                     <h3 className="text-base sm:text-lg font-bold text-slate-800">Розница</h3>
-                                    <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-xl leading-relaxed">
-                                        Сколько заработает платформа при прямых продажах клиентам по полной цене.
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        Прямые продажи клиентам по полной цене · {globalData.periodLabel}
                                     </p>
                                 </div>
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 shrink-0">
-                                    Показатели {globalData.periodLabel}
-                                </span>
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-                                {/* Левая колонка: параметры */}
-                                <div className="lg:col-span-1 space-y-5">
-                                    <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-sm text-slate-600 space-y-2">
-                                        <p className="font-semibold text-slate-800">Как считается</p>
-                                        <p><span className="font-medium text-blue-700">Выручка</span> = пользователи × розничная цена</p>
-                                        <p><span className="font-medium text-red-600">Затраты</span> = клиенты × утилизация × (себест. ИИ + устные консультации по тарифу)</p>
-                                        <p><span className="font-medium text-emerald-700">Маржа</span> = выручка − затраты</p>
-                                    </div>
-
-                                    <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3 text-xs text-amber-900">
-                                        <p className="font-semibold mb-1">Тарифы и цены</p>
-                                        <p>Редактируются во вкладке <button type="button" onClick={() => setViewMode('tariffs')} className="underline font-medium text-emerald-700">Тарифы</button>. Текущий период: <strong>{PERIOD_LABELS[billingPeriod]}</strong></p>
-                                    </div>
-
-                                    <div className="rounded-xl border border-slate-200 p-4 space-y-3">
-                                        <p className="text-sm font-semibold text-slate-800">Тарифы в расчёте ({periodLabel})</p>
-                                        <p className="text-xs text-slate-400">Все показатели розницы считаются только по параметрам ниже.</p>
-                                        {TARIFF_KEYS.map((k) => (
-                                            <TariffEconomicsEditor
-                                                key={k}
-                                                tariff={activeTariffs[k]}
-                                                period={billingPeriod}
-                                                tariffKey={k}
-                                                periodLabel={periodLabel}
-                                                onUpdateTariff={onUpdateTariff}
-                                                users={usersByTariff[k]}
-                                                utilization={utilByTariff[k]}
-                                                onUsersChange={(n) => onTariffUsersChange(k, n)}
-                                                onUtilChange={(u) => onTariffUtilChange(k, u)}
-                                            />
-                                        ))}
-                                        <div className="pt-3 border-t border-slate-100">
-                                            <p className="text-xs text-slate-500 mb-2">Структура базы ({formatNumber(totalUsers)} чел.)</p>
-                                            <div className="flex h-4 rounded-full overflow-hidden border border-slate-200">
-                                                {globalData.rows.map((row) => (
-                                                    row.sharePct > 0 && (
-                                                        <div
-                                                            key={row.key}
-                                                            className="h-full transition-all"
-                                                            style={{ width: `${row.sharePct}%`, backgroundColor: row.color }}
-                                                            title={`${row.shortName}: ${row.sharePct.toFixed(1)}%`}
-                                                        />
-                                                    )
-                                                ))}
-                                            </div>
-                                            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
-                                                {globalData.rows.map((row) => (
-                                                    <span key={row.key} className="text-[10px] text-slate-500 flex items-center gap-1">
-                                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: row.color }}></span>
-                                                        {row.shortName}: {formatNumber(row.users)} ({row.sharePct.toFixed(0)}%)
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 sm:p-4">
+                                    <p className="text-xs text-blue-600">Выручка</p>
+                                    <p className="text-xl sm:text-2xl font-bold text-slate-900 break-words">{formatMoney(globalData.totalRev)}</p>
                                 </div>
+                                <div className="bg-red-50 border border-red-100 rounded-xl p-3 sm:p-4">
+                                    <p className="text-xs text-red-600">Затраты</p>
+                                    <p className="text-xl sm:text-2xl font-bold text-slate-900 break-words">{formatMoney(globalData.totalCost)}</p>
+                                </div>
+                                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 sm:p-4">
+                                    <p className="text-xs text-emerald-600">Маржа</p>
+                                    <p className="text-xl sm:text-2xl font-bold text-slate-900 break-words">{formatMoney(globalData.totalMargin)}</p>
+                                    <p className="text-[10px] text-emerald-700 mt-0.5 font-medium">Рентабельность {globalData.marginPct.toFixed(1)}%</p>
+                                </div>
+                            </div>
 
-                                {/* Правая колонка: результаты */}
-                                <div className="lg:col-span-2 space-y-4 sm:space-y-6 min-w-0">
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                                        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 sm:p-4">
-                                            <p className="text-xs sm:text-sm text-blue-600">Выручка {globalData.periodLabel}</p>
-                                            <p className="text-xl sm:text-2xl font-bold text-slate-900 break-words">{formatMoney(globalData.totalRev)}</p>
-                                            <p className="text-[10px] sm:text-xs text-slate-400 mt-1">Клиенты платят полную розничную цену</p>
-                                        </div>
-                                        <div className="bg-red-50 border border-red-100 rounded-xl p-3 sm:p-4">
-                                            <p className="text-xs sm:text-sm text-red-600">Затраты {globalData.periodLabel}</p>
-                                            <p className="text-xl sm:text-2xl font-bold text-slate-900 break-words">{formatMoney(globalData.totalCost)}</p>
-                                            <p className="text-[10px] sm:text-xs text-slate-400 mt-1">Ставки услуг фиксированы; утилизация масштабирует итог затрат</p>
-                                        </div>
-                                        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 sm:p-4">
-                                            <p className="text-xs sm:text-sm text-emerald-600">Маржа {globalData.periodLabel}</p>
-                                            <p className="text-xl sm:text-2xl font-bold text-slate-900 break-words">{formatMoney(globalData.totalMargin)}</p>
-                                            <p className="text-[10px] sm:text-xs text-emerald-700 mt-1 font-medium">Рентабельность {globalData.marginPct.toFixed(1)}%</p>
-                                        </div>
-                                    </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5 text-xs text-slate-600">
+                                <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-3 space-y-1">
+                                    <p className="font-semibold text-slate-800">Как считается</p>
+                                    <p><span className="text-blue-700 font-medium">Выручка</span> = клиенты × цена</p>
+                                    <p><span className="text-red-600 font-medium">Затраты</span> = клиенты × утилизация × (ИИ + консультации)</p>
+                                    <p><span className="text-emerald-700 font-medium">Маржа</span> = выручка − затраты</p>
+                                </div>
+                                <div className="rounded-lg border border-amber-100 bg-amber-50/40 p-3">
+                                    <p className="font-semibold text-amber-900 mb-1">Тарифы и цены</p>
+                                    <p className="text-amber-900/90">Редактируются во вкладке <button type="button" onClick={() => setViewMode('tariffs')} className="underline font-medium text-emerald-700">Тарифы</button>. Период: <strong>{PERIOD_LABELS[billingPeriod]}</strong></p>
+                                </div>
+                            </div>
 
-                                    {/* Карточки-формулы по тарифам */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                        {globalData.rows.map((row) => (
-                                            <div key={row.key} className="rounded-xl border border-slate-200 p-3 bg-white text-xs flex flex-col">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: row.color }}></span>
-                                                    <span className="font-semibold text-slate-800 truncate">{row.shortName}</span>
-                                                </div>
-                                                <p className="text-xs text-slate-500 leading-relaxed mb-1">{row.clientDescription}</p>
-                                                <div className="mt-2 pt-2 border-t border-slate-100 flex-grow">
-                                                    <p className="text-slate-500 mb-1">{formatNumber(row.users)} × {formatMoney(row.price)}</p>
-                                                    <p className="font-semibold text-blue-600">= {formatMoney(row.rev)} выручка</p>
-                                                    <p className="text-slate-400 mt-2 break-words leading-relaxed">{row.costBreakdown}</p>
-                                                    <p className="font-semibold text-red-500 mt-0.5">= {formatMoney(row.cost)} затраты ({formatNumber(row.users)} лиц.)</p>
-                                                    <p className="font-semibold text-emerald-600 mt-1">Маржа {formatMoney(row.margin)}</p>
-                                                </div>
+                            <div className="mb-4">
+                                <p className="text-sm font-semibold text-slate-800">Тарифы в расчёте</p>
+                                <p className="text-xs text-slate-400 mb-3">Параметры и результат по каждому тарифу</p>
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                    {TARIFF_KEYS.map((k) => {
+                                        const row = globalData.rows.find((r) => r.key === k);
+                                        return (
+                                            <div key={k} className="flex flex-col gap-3 min-w-0">
+                                                <TariffEconomicsEditor
+                                                    tariff={activeTariffs[k]}
+                                                    period={billingPeriod}
+                                                    tariffKey={k}
+                                                    periodLabel={periodLabel}
+                                                    onUpdateTariff={onUpdateTariff}
+                                                    users={usersByTariff[k]}
+                                                    utilization={utilByTariff[k]}
+                                                    onUsersChange={(n) => onTariffUsersChange(k, n)}
+                                                    onUtilChange={(u) => onTariffUtilChange(k, u)}
+                                                />
+                                                {row && (
+                                                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-xs flex-1">
+                                                        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200/80">
+                                                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: row.color }}></span>
+                                                            <span className="font-semibold text-slate-800">Результат</span>
+                                                            <span className="ml-auto text-slate-400">{row.sharePct.toFixed(0)}% базы</span>
+                                                        </div>
+                                                        <p className="text-slate-500">{formatNumber(row.users)} × {formatMoney(row.price)}</p>
+                                                        <p className="font-semibold text-blue-600">= {formatMoney(row.rev)} выручка</p>
+                                                        <p className="text-slate-400 mt-2 break-words leading-relaxed">{row.costBreakdown}</p>
+                                                        <p className="font-semibold text-red-500 mt-1">= {formatMoney(row.cost)} затраты</p>
+                                                        <p className="font-semibold text-emerald-600 mt-2 pt-2 border-t border-slate-200/80">Маржа {formatMoney(row.margin)}</p>
+                                                    </div>
+                                                )}
                                             </div>
-                                        ))}
-                                    </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
 
-                                    <div>
-                                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 sm:mb-3">Маржа по тарифам</p>
-                                        <div className="h-52 sm:h-56 w-full min-w-0">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <BarChart data={globalData.rows} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                                    <XAxis dataKey="shortName" tick={{ fontSize: 9 }} interval={0} angle={0} textAnchor="middle" height={32} />
-                                                    <YAxis tickFormatter={(val) => `${val / 1000}k`} tick={{ fontSize: 9 }} width={32} />
-                                                    <Tooltip formatter={(value) => formatMoney(value)} labelFormatter={(label, payload) => payload?.[0]?.payload?.name || label} />
-                                                    <Bar dataKey="margin" name="Маржа" radius={[4, 4, 0, 0]}>
-                                                        {globalData.rows.map((entry) => (
-                                                            <Cell key={entry.key} fill={entry.color} />
-                                                        ))}
-                                                    </Bar>
-                                                </BarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </div>
-
-                                    <p className="table-scroll-hint text-xs text-slate-400 mb-2">← Прокрутите таблицу →</p>
-                                    <div className="touch-scroll border border-slate-200 rounded-xl">
-                                        <table className="w-full text-xs sm:text-sm text-left min-w-[680px]">
-                                            <thead className="bg-slate-50 text-slate-500 font-medium">
-                                                <tr>
-                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b">Тариф</th>
-                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right">Доля</th>
-                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right">Польз.</th>
-                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right">Цена</th>
-                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right whitespace-nowrap">Себест.</th>
-                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right">Выручка</th>
-                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right">Затраты</th>
-                                                    <th className="px-2 sm:px-4 py-2 sm:py-3 border-b text-right">Маржа</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {globalData.rows.map((row) => (
-                                                    <tr key={row.key} className="hover:bg-slate-50">
-                                                        <td className="px-2 sm:px-4 py-2 sm:py-3">
-                                                            <div className="flex items-center gap-2 font-medium text-slate-800">
-                                                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: row.color }}></span>
-                                                                <span>{row.shortName}</span>
-                                                            </div>
-                                                            <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">{row.clientDescription}</p>
-                                                            <p className="text-[10px] text-slate-500 mt-1 pl-4 font-medium">{row.costBreakdown}</p>
-                                                        </td>
-                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-slate-500">{row.sharePct.toFixed(1)}%</td>
-                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums">{formatNumber(row.users)}</td>
-                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums whitespace-nowrap">{formatMoney(row.price)}</td>
-                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-slate-500 whitespace-nowrap">{formatMoney(row.unitCost)}</td>
-                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-blue-600 whitespace-nowrap">{formatMoney(row.rev)}</td>
-                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-red-600 whitespace-nowrap">{formatMoney(row.cost)}</td>
-                                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums font-semibold text-emerald-600 whitespace-nowrap">{formatMoney(row.margin)}</td>
-                                                    </tr>
-                                                ))}
-                                                <tr className="bg-slate-50 font-semibold">
-                                                    <td className="px-2 sm:px-4 py-2 sm:py-3" colSpan="5">Итого ({globalData.periodLabel})</td>
-                                                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-blue-600">{formatMoney(globalData.totalRev)}</td>
-                                                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-red-600">{formatMoney(globalData.totalCost)}</td>
-                                                    <td className="px-2 sm:px-4 py-2 sm:py-3 text-right tabular-nums text-emerald-600">{formatMoney(globalData.totalMargin)}</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                            <div className="rounded-lg border border-slate-200 bg-white p-3">
+                                <p className="text-xs font-medium text-slate-600 mb-2">Структура базы · {formatNumber(totalUsers)} чел.</p>
+                                <div className="flex h-3 rounded-full overflow-hidden border border-slate-200 mb-2">
+                                    {globalData.rows.map((row) => (
+                                        row.sharePct > 0 && (
+                                            <div
+                                                key={row.key}
+                                                className="h-full transition-all"
+                                                style={{ width: `${row.sharePct}%`, backgroundColor: row.color }}
+                                                title={`${row.shortName}: ${row.sharePct.toFixed(1)}%`}
+                                            />
+                                        )
+                                    ))}
+                                </div>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                    {globalData.rows.map((row) => (
+                                        <span key={row.key} className="text-[10px] text-slate-500 flex items-center gap-1">
+                                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: row.color }}></span>
+                                            {row.shortName}: {formatNumber(row.users)} ({row.sharePct.toFixed(0)}%)
+                                        </span>
+                                    ))}
                                 </div>
                             </div>
                         </div>
